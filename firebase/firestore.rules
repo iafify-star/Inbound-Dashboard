@@ -1,0 +1,59 @@
+rules_version = '2';
+// =============================================================================
+// قواعد فايربيس — متعملش deploy قبل ما تملى القوائم تحت
+// القائمة الفاضية = مفيش حد يقرأ فايربيس. اللوحة تفضل تشتغل لأن mode=sheet
+//
+// خطوات يدوي:
+// 1) اكتب إيميلات الموظفين في employeeEmails
+//    مثال: return ["ahmed@company.com", "sara@company.com"];
+// 2) أو اكتب دومين الشركة في employeeDomains
+//    مثال: return ["company.com"];
+// 3) انسخ نفس القيم في employees.allowlist.json عشان التيم يلاقيها
+// 4) firebase deploy --only firestore:rules
+// =============================================================================
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null
+        && request.auth.token.email != null
+        && request.auth.token.email_verified == true;
+    }
+
+    // حط إيميلات الموظفين هنا قبل القفل
+    function employeeEmails() {
+      return [];
+    }
+
+    // أو دومين الشركة. فاضي = مش مستخدم
+    function employeeDomains() {
+      return [];
+    }
+
+    function emailDomain() {
+      return request.auth.token.email.split('@')[1];
+    }
+
+    function isEmployee() {
+      return signedIn() && (
+        request.auth.token.employee == true
+        || request.auth.token.email in employeeEmails()
+        || emailDomain() in employeeDomains()
+      );
+    }
+
+    // الوثيقة الوحيدة اللي الفرونت هيسمعها بعد الربط
+    match /inbound/live {
+      allow read: if isEmployee();
+      allow write: if false; // الكتابة من السيرفر فقط
+    }
+
+    match /inbound/{document=**} {
+      allow read: if isEmployee();
+      allow write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

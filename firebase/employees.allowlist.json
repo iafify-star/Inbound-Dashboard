@@ -1,0 +1,5 @@
+{
+  "emails": [],
+  "domains": [],
+  "notes": "املأ emails أو domains بإيدك. انسخ نفس القيم جوّه firebase/firestore.rules في employeeEmails() و employeeDomains(). متفعلش auth.required في inbound-config.js والقائمة فاضية."
+}

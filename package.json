@@ -1,0 +1,5 @@
+{
+  "name": "inbound-receiving-dashboard",
+  "private": true,
+  "type": "module"
+}

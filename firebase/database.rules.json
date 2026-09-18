@@ -1,0 +1,12 @@
+{
+  "rules": {
+    "inbound": {
+      "live": {
+        ".read": "auth != null && auth.token.email_verified == true && (auth.token.employee == true || auth.token.email != null)",
+        ".write": false
+      }
+    },
+    ".read": false,
+    ".write": false
+  }
+}

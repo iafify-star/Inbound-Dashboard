@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- الفرونت كله في الملف ده + js/inbound-*.js. السويتشات: js/inbound-config.js -->
 <html lang="en" dir="ltr">
 <head>
 <meta charset="UTF-8" />
@@ -491,8 +492,17 @@
   <p class="designer-credit">Designed by Ibrahim Afify</p>
 </div>
 
+<script src="js/inbound-config.js"></script>
+<script src="js/inbound-security.js"></script>
+<script src="js/inbound-client.js"></script>
 <script>
-// ===================== CONFIG =====================
+// =============================================================================
+// لوحة العرض — الفرونت كلّه هنا
+// الداتا تدخل من InboundClient بس (السويتش في js/inbound-config.js)
+// متعملش initializeApp أو fetch لفايربيس من الملف ده.
+// =============================================================================
+
+// لو الشيت اتغيّر: بدّل SHEET_ID و gid بتاع تبويب Capacity
 const SHEET_ID = "1D1HKYe0wjCb0sroYOgdkYLfcrkdNSWKKIYDaD6D9_Ns";
 const CSV_BASE_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0`;
 const CAPACITY_GID = "514598343";
@@ -500,15 +510,20 @@ const CAPACITY_CSV_URLS = [
   `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Capacity`,
   `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${CAPACITY_GID}`,
 ];
-const AUTO_REFRESH_MS = 120000; // 2 minutes
+// سرعة التحديث من الشيت بالمللي ثانية. 30000 = 30 ثانية. صغّرها بحرص عشان جوجل.
+const AUTO_REFRESH_MS = 30000;
 
+// نصوص إنجليزي / عربي. لو ضفت جملة: حط نفس المفتاح في en و ar.
+// في HTML استخدم data-i18n="المفتاح"
 const I18N = {
   en:{
     title:"Inbound Receiving Dashboard | noon minutes",
     brandTitle:"Inbound Receiving Dashboard",
     brandSub:"Inbound team — warehouse receiving operations",
     live:"Live from receiving sheet",
-    loading:"Syncing with receiving sheet...",
+    liveMock:"Mock backend — ready for Firebase",
+    liveFirebase:"Firebase adapter (mock until connected)",
+    loading:"Syncing inbound data...",
     cached:"Cached data (offline)",
     receipts:"Receipts:",
     updated:"Updated:",
@@ -606,7 +621,7 @@ const I18N = {
     forecastTitle:"End-of-day forecast",
     forecastText:"If receiving continues at the same hourly pace until 8:00 PM: {proj} units ({pct}% of capacity).",
     forecastNeedDay:"Select a single day to see the end-of-day forecast.",
-    sheetError:"Could not read the live receiving sheet. Share it as Anyone with the link → Viewer, then refresh. Showing cached data if available.",
+    sheetError:"Could not refresh the live receiving sheet. The dashboard stays up on the last loaded data.",
     noAcc:"No schedule-accuracy values in this view",
   },
   ar:{
@@ -614,7 +629,9 @@ const I18N = {
     brandTitle:"لوحة استلام inbound",
     brandSub:"فريق inbound — عمليات استلام المخازن",
     live:"متصل ببيانات شيت الاستلام",
-    loading:"جاري المزامنة مع شيت الاستلام...",
+    liveMock:"باك موك — جاهز لربط Firebase",
+    liveFirebase:"محول Firebase (موك لحد الربط الفعلي)",
+    loading:"جاري مزامنة بيانات inbound...",
     cached:"بيانات محفوظة (بدون اتصال)",
     receipts:"الاستلامات:",
     updated:"آخر تحديث:",
@@ -712,7 +729,7 @@ const I18N = {
     forecastTitle:"توقع نهاية اليوم",
     forecastText:"لو الاستلام كمّل بنفس المعدل لحد 8:00 مساءً: {proj} وحدة ({pct}% من الطاقة).",
     forecastNeedDay:"اختَر يومًا واحدًا لعرض توقع نهاية اليوم.",
-    sheetError:"تعذر قراءة شيت الاستلام. اجعله Anyone with the link → Viewer ثم حدّث الصفحة. يتم عرض بيانات محفوظة إن وُجدت.",
+    sheetError:"تعذر تحديث شيت الاستلام. الموقع مستمر على آخر بيانات اتحمّلت.",
     noAcc:"لا توجد قيم لدقة الجدول في هذا العرض",
   }
 };
@@ -720,6 +737,7 @@ const I18N = {
 let currentLang = document.documentElement.lang === "ar" ? "ar" : "en";
 let liveState = "loading";
 
+// ترجم نص. مثال: t("live") أو t("capOne",{date:"..."})
 function t(key, vars){
   let s = (I18N[currentLang] && I18N[currentLang][key]) || I18N.en[key] || key;
   if(vars){
@@ -761,12 +779,13 @@ function initLang(){
 }
 
 // ===================== FACILITY MERGE =====================
-// CAIID03 and CAIID04 are merged into a single facility group across all filters, charts, and the table
+// أي صف CAIID03 أو CAIID04 بيتحول لـ CAIID03+04 في الفلاتر والشارت والجدول.
+// لو هتدمج مستودعين جداد: ضيفهم هنا + في CAPACITY_ORDER تحت.
 const FACILITY_MERGE = { "CAIID03":"CAIID03+04", "CAIID04":"CAIID03+04" };
 
 // ===================== CAPACITY DATA =====================
-// Fallback daily capacity if the Capacity tab is missing or a date has no row.
-// Live values come from sheet tab "Capacity": Date | Facility | Capacity
+// أرقام احتياطية لو تبويب Capacity فاضي. الأرقام الحية من الشيت: Date | Facility | Capacity
+// لو ضفت مستودع: حطه هنا وفي CAPACITY_ORDER بنفس الاسم بعد الدمج.
 const CAPACITY_DATA = {
   "CAIID01":   59200,
   "CAIID03+04": 1500 + 7200, // CAIID03 (1,500) + CAIID04 (7,200)
@@ -777,7 +796,7 @@ const CAPACITY_DATA = {
 const CAPACITY_ORDER = ["CAIID01","CAIID03+04","CAIID05","CAIID06","CAIID07"];
 
 // ===================== FALLBACK SNAPSHOT =====================
-// Used only if the live Google Sheets fetch fails (e.g. offline, or sheet not shared publicly).
+// تظهر فقط لو الشيت وقع من أول تحميل. متحدثهاش يومياً — الشيت هو المصدر.
 const FALLBACK_DATA = [
 {date:"2026-09-17",vendor:"Yaz for Industry and Trade (LYCHEE)",ro:"473914097095289",asn:"A06091821PN",accuracy:"Mentioned in Schedule",facility:"CAIID01",qty:360,status:"Received",arrival:"1:41:48 PM",emp:"Mahmoud Wallid",cars:1,product:3},
 {date:"2026-09-17",vendor:"Yaz for Industry and Trade (LYCHEE)",ro:"473914780352262",asn:"A06117455PN",accuracy:"Mentioned in Schedule",facility:"CAIID01",qty:288,status:"Received",arrival:"1:41:48 PM",emp:"Mahmoud Wallid",cars:1,product:2},
@@ -850,9 +869,23 @@ const MONTHS = {
 };
 function pad2(n){ return String(n).padStart(2,"0"); }
 function ymd(y,m,d){ return `${y}-${pad2(m)}-${pad2(d)}`; }
+// أي نص من الشيت يتحط في HTML لازم يعدّي من هنا عشان ميكسرش الصفحة
+function escapeHtml(value){
+  return String(value ?? "").replace(/[&<>"']/g, ch => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"
+  }[ch]));
+}
+function el(id){ return document.getElementById(id); }
+function setText(id, value){
+  const node = el(id);
+  if(node) node.textContent = value;
+}
+function on(id, ev, fn){
+  const node = el(id);
+  if(node) node.addEventListener(ev, fn);
+}
 
-// Parse sheet dates as calendar days (no UTC shift).
-// "September 17, 2026" + toISOString() becomes Sep 16 in Egypt (UTC+2/+3).
+// تاريخ الشيت كيوم تقويم. متستخدمش toISOString() هنا — في مصر بيظهر اليوم اللي قبله.
 function parseSheetDate(dateRaw){
   if(dateRaw==null) return "";
   const s = dateRaw.toString().trim();
@@ -910,6 +943,7 @@ function hourLabel(h){
 }
 function unique(arr, key){ return [...new Set(arr.map(r=>r[key]))].filter(Boolean).sort(); }
 
+// الذاكرة الحية للوحة. متكتبش فيها غير من loadData()
 let RAW_DATA = [];
 let RAW_CAPACITY = [];
 let charts = {};
@@ -917,6 +951,7 @@ let sortState = {key:"arrival", dir:1};
 let datesInitialized = false;
 
 // ===================== LIVE DATA LOADING =====================
+// pick: يلاقي عمود الشيت حتى لو الاسم فيه مسافات أو اختلاف حروف
 function pick(row, keys){
   for(const k of Object.keys(row)){
     const kn = k.trim().toLowerCase();
@@ -927,6 +962,9 @@ function pick(row, keys){
   return undefined;
 }
 
+// هنا ربط أعمدة الشيت بأسماء البرنامج.
+// لو الشيت ضاف عمود: pick(row,["اسم العمود في الشيت"]) بعدين حطه في الـ return
+// وظهره في renderTable + exportExcel
 function normalizeRow(row){
   const vendor = (pick(row,["Vendor"])||"").toString().trim();
   const asn = (pick(row,["ASN"])||"").toString().trim();
@@ -937,6 +975,7 @@ function normalizeRow(row){
 
   const qtyRaw = (pick(row,["Quantity Received"])||"0").toString().replace(/,/g,"").trim();
   const carsRaw = (pick(row,["Cars"])||"0").toString().replace(/,/g,"").trim();
+  // Proudct = الإملاء الغلط الموجود في الشيت. متشيلوش.
   const productRaw = (pick(row,["Proudct","Product"])||"").toString().replace(/,/g,"").trim();
   const arrivalRaw = (pick(row,["Arrival Time"])||"").toString().trim();
 
@@ -969,6 +1008,7 @@ function normalizeFacilityName(raw){
   return FACILITY_MERGE[code] || code;
 }
 
+// صف تبويب Capacity. أسماء الأعمدة البديلة موجودة عشان الشيت لو اتكتب WH بدل Facility
 function normalizeCapacityRow(row){
   const facility = normalizeFacilityName(pick(row,["Facility","WH","Warehouse"]));
   if(!facility) return null;
@@ -1016,70 +1056,133 @@ function capacityMapForDates(dates){
 
 function setLiveBadge(state){
   liveState = state || liveState;
-  const el = document.getElementById("liveBadge");
-  el.classList.remove("live","cached","loading");
-  const key = liveState==="loading" ? "loading" : liveState==="live" ? "live" : "cached";
-  el.classList.add(liveState==="loading" ? "loading" : liveState==="live" ? "live" : "cached");
-  el.innerHTML = `<span class="dot"></span> ${t(key)}`;
+  const badge = el("liveBadge");
+  if(!badge) return;
+  badge.classList.remove("live","cached","loading");
+  const map = {
+    loading:{cls:"loading", key:"loading"},
+    live:{cls:"live", key:"live"},
+    mock:{cls:"live", key:"liveMock"},
+    firebase:{cls:"live", key:"liveFirebase"},
+    cached:{cls:"cached", key:"cached"}
+  };
+  const m = map[liveState] || map.cached;
+  badge.classList.add(m.cls);
+  badge.innerHTML = `<span class="dot"></span> ${t(m.key)}`;
 }
 
 async function fetchCsv(url){
   const sep = url.includes("?") ? "&" : "?";
-  const res = await fetch(url + sep + "_ts=" + Date.now(), {cache:"no-store"});
-  if(!res.ok) throw new Error("HTTP "+res.status);
-  return res.text();
+  const ctrl = new AbortController();
+  const timer = setTimeout(()=>ctrl.abort(), 12000);
+  try{
+    const res = await fetch(url + sep + "_ts=" + Date.now(), {cache:"no-store", signal:ctrl.signal});
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    return res.text();
+  }finally{
+    clearTimeout(timer);
+  }
 }
 
 async function loadCapacitySheet(){
-  if(typeof Papa === "undefined") return;
+  if(typeof Papa === "undefined") return [];
   for(const url of CAPACITY_CSV_URLS){
     try{
       const text = await fetchCsv(url);
       const parsed = Papa.parse(text, {header:true, skipEmptyLines:true});
       const rows = parsed.data.map(normalizeCapacityRow).filter(Boolean);
-      if(rows.length){
-        RAW_CAPACITY = rows;
-        return;
-      }
+      if(rows.length) return rows;
     }catch(err){
       console.warn("Capacity sheet fetch failed:", url, err);
     }
   }
+  return [];
 }
 
-async function loadData(){
-  const btn = document.getElementById("btnRefresh");
-  btn.disabled = true;
-  setLiveBadge("loading");
-  const capPromise = loadCapacitySheet();
-  try{
+// محول الشيت. InboundClient بيناديه لما mode=sheet. متستدعوهوش من الأزرار مباشرة.
+window.InboundSheetAdapter = {
+  async load(){
     const text = await fetchCsv(CSV_BASE_URL);
     if(typeof Papa === "undefined") throw new Error("CSV parser unavailable");
     const parsed = Papa.parse(text, {header:true, skipEmptyLines:true});
-    const rows = parsed.data.map(normalizeRow).filter(Boolean);
-    if(!rows.length) throw new Error("No data rows found in sheet");
-    RAW_DATA = rows;
-    await capPromise;
-    setLiveBadge("live");
-    const errBox = document.getElementById("sheetError");
+    const receipts = parsed.data.map(normalizeRow).filter(Boolean);
+    if(!receipts.length) throw new Error("No data rows found in sheet");
+    const capacity = await loadCapacitySheet();
+    return {
+      source:"sheet",
+      updatedAt: new Date().toISOString(),
+      receipts,
+      capacity,
+      settings:{ refreshMs: AUTO_REFRESH_MS, allowPublicRead:true, features:{export:true,compare:true,print:true} }
+    };
+  }
+};
+
+function applyBackendSettings(settings){
+  if(!settings) return;
+  const features = settings.features || {};
+  const exportBtn = document.getElementById("btnExport");
+  const printBtn = document.getElementById("btnPrint");
+  if(exportBtn) exportBtn.hidden = features.export === false;
+  if(printBtn) printBtn.hidden = features.print === false;
+  startAutoRefresh(settings.refreshMs || AUTO_REFRESH_MS);
+}
+
+let refreshTimer = null;
+let loadInFlight = false;
+function startAutoRefresh(ms){
+  if(refreshTimer) clearInterval(refreshTimer);
+  refreshTimer = setInterval(loadData, ms || AUTO_REFRESH_MS);
+}
+
+// تحميل آمن: لو الشيت فشل، آخر بيانات تفضل على الشاشة. متخلّيش الزرار disabled للأبد.
+async function loadData(){
+  if(loadInFlight) return;
+  loadInFlight = true;
+  const btn = el("btnRefresh");
+  const hadData = RAW_DATA.length > 0;
+  if(btn) btn.disabled = true;
+  if(!hadData) setLiveBadge("loading");
+  try{
+    if(!window.InboundClient) throw new Error("Inbound client is not loaded");
+    const snap = await window.InboundClient.load();
+    if(!snap.receipts.length) throw new Error("No inbound rows from sheet");
+    RAW_DATA = snap.receipts;
+    if(snap.capacity && snap.capacity.length) RAW_CAPACITY = snap.capacity;
+    applyBackendSettings(snap.settings);
+    const badge = snap.source === "mock" ? "mock" : snap.source === "firebase" ? "firebase" : "live";
+    setLiveBadge(badge);
+    const errBox = el("sheetError");
     if(errBox) errBox.hidden = true;
   }catch(err){
-    console.warn("Live data fetch failed, falling back:", err);
+    console.warn("Live sheet refresh failed; keeping the dashboard up:", err);
     if(!RAW_DATA.length) RAW_DATA = FALLBACK_DATA;
-    await capPromise;
     setLiveBadge("cached");
-    const errBox = document.getElementById("sheetError");
-    if(errBox){ errBox.hidden = false; errBox.textContent = t("sheetError"); }
+    const errBox = el("sheetError");
+    if(errBox && !hadData){
+      errBox.hidden = false;
+      errBox.textContent = t("sheetError");
+    }
+  }finally{
+    try{
+      populateFilterOptions();
+      applyInitialFilters();
+      render();
+      const updated = el("metaUpdated");
+      if(updated) updated.textContent = new Date().toLocaleString(loc());
+    }catch(renderErr){
+      console.warn("Dashboard render recovered from an error:", renderErr);
+    }
+    if(btn) btn.disabled = false;
+    loadInFlight = false;
   }
-  populateFilterOptions();
-  applyInitialFilters();
-  render();
-  document.getElementById("metaUpdated").textContent = new Date().toLocaleString(loc());
-  btn.disabled = false;
 }
 
 // ===================== FILTERS =====================
+// فلتر جديد: ضيف <select id="..."> في HTML فوق، بعدين on("id","change",onFiltersChanged)
+// وشروطه جوّه nonDateMatch أو getDateBounds
 function rebuildSelect(selectEl, values, allLabel, formatFn){
+  if(!selectEl) return "";
   const prev = selectEl.value;
   selectEl.innerHTML = "";
   const allOpt = document.createElement("option");
@@ -1123,11 +1226,12 @@ function applyInitialFilters(){
   const from = params.get("from") || one || prefs.from || latest;
   const to = params.get("to") || one || prefs.to || latest;
   const fac = params.get("facility") || prefs.facility || "";
-  if(from) document.getElementById("fDateFrom").value = from;
-  if(to) document.getElementById("fDateTo").value = to;
-  if(fac && [...document.getElementById("fFacility").options].some(o=>o.value===fac)){
-    document.getElementById("fFacility").value = fac;
-  }
+  const fromEl = el("fDateFrom");
+  const toEl = el("fDateTo");
+  const facEl = el("fFacility");
+  if(from && fromEl) fromEl.value = from;
+  if(to && toEl) toEl.value = to;
+  if(fac && facEl && [...facEl.options].some(o=>o.value===fac)) facEl.value = fac;
 }
 
 function syncUrl(){
@@ -1146,17 +1250,17 @@ function syncUrl(){
 }
 
 function getDateBounds(){
-  let from = document.getElementById("fDateFrom").value;
-  let to = document.getElementById("fDateTo").value;
+  let from = (el("fDateFrom") && el("fDateFrom").value) || "";
+  let to = (el("fDateTo") && el("fDateTo").value) || "";
   if(from && to && from>to){ const x=from; from=to; to=x; }
   return {from, to};
 }
 
 function nonDateMatch(r){
-  const facility = document.getElementById("fFacility").value;
-  const emp = document.getElementById("fEmp").value;
-  const status = document.getElementById("fStatus").value;
-  const search = document.getElementById("fSearch").value.trim().toLowerCase();
+  const facility = (el("fFacility") && el("fFacility").value) || "";
+  const emp = (el("fEmp") && el("fEmp").value) || "";
+  const status = (el("fStatus") && el("fStatus").value) || "";
+  const search = ((el("fSearch") && el("fSearch").value) || "").trim().toLowerCase();
   if(facility && r.facility!==facility) return false;
   if(emp && r.emp!==emp) return false;
   if(status && r.status!==status) return false;
@@ -1169,44 +1273,39 @@ function nonDateMatch(r){
 
 function onFiltersChanged(){
   const {from, to} = getDateBounds();
-  document.getElementById("fDateFrom").value = from;
-  document.getElementById("fDateTo").value = to;
+  if(el("fDateFrom")) el("fDateFrom").value = from;
+  if(el("fDateTo")) el("fDateTo").value = to;
   syncUrl();
   render();
 }
 
 function initFilterEvents(){
-  ["fFacility","fEmp","fStatus","fDateFrom","fDateTo"].forEach(id=>{
-    document.getElementById(id).addEventListener("change", onFiltersChanged);
-  });
-  document.getElementById("fSearch").addEventListener("input", render);
-  document.getElementById("tableSearch").addEventListener("input", renderTableOnly);
-  document.getElementById("btnReset").addEventListener("click", ()=>{
-    document.getElementById("fFacility").value = "";
-    document.getElementById("fEmp").value = "";
-    document.getElementById("fStatus").value = "";
-    document.getElementById("fDateFrom").value = "";
-    document.getElementById("fDateTo").value = "";
-    document.getElementById("fSearch").value = "";
-    document.getElementById("tableSearch").value = "";
+  ["fFacility","fEmp","fStatus","fDateFrom","fDateTo"].forEach(id=>on(id, "change", onFiltersChanged));
+  on("fSearch", "input", render);
+  on("tableSearch", "input", renderTableOnly);
+  on("btnReset", "click", ()=>{
+    ["fFacility","fEmp","fStatus","fDateFrom","fDateTo","fSearch","tableSearch"].forEach(id=>{
+      if(el(id)) el(id).value = "";
+    });
     onFiltersChanged();
   });
-  document.getElementById("btnRefresh").addEventListener("click", loadData);
-  document.getElementById("btnExport").addEventListener("click", exportExcel);
-  document.getElementById("btnPrint").addEventListener("click", ()=>window.print());
-  document.getElementById("btnCopyLink").addEventListener("click", ()=>{
+  on("btnRefresh", "click", loadData);
+  on("btnExport", "click", exportExcel);
+  on("btnPrint", "click", ()=>window.print());
+  on("btnCopyLink", "click", ()=>{
     syncUrl();
+    if(!navigator.clipboard) return;
     navigator.clipboard.writeText(location.href).then(()=>{
-      document.getElementById("btnCopyLink").textContent = t("linkCopied");
-      setTimeout(()=>{ document.getElementById("btnCopyLink").textContent = t("copyLink"); }, 1600);
+      setText("btnCopyLink", t("linkCopied"));
+      setTimeout(()=>setText("btnCopyLink", t("copyLink")), 1600);
     }).catch(()=>{});
   });
-  document.getElementById("btnSavePref").addEventListener("click", ()=>{
+  on("btnSavePref", "click", ()=>{
     const {from, to} = getDateBounds();
-    const prefs = {from, to, facility: document.getElementById("fFacility").value};
+    const prefs = {from, to, facility: (el("fFacility") && el("fFacility").value) || ""};
     try{ localStorage.setItem("inbound-prefs", JSON.stringify(prefs)); }catch(e){}
-    document.getElementById("btnSavePref").textContent = t("prefSaved");
-    setTimeout(()=>{ document.getElementById("btnSavePref").textContent = t("savePref"); }, 1600);
+    setText("btnSavePref", t("prefSaved"));
+    setTimeout(()=>setText("btnSavePref", t("savePref")), 1600);
   });
   document.querySelectorAll("thead th[data-key]").forEach(th=>{
     th.addEventListener("click", ()=>{
@@ -1248,25 +1347,27 @@ function filterRange(rows, from, to){
 }
 
 // ===================== KPIs =====================
+// رقم KPI جديد: ضيف كارت في HTML بنفس شكل .kpi بعدين setText هنا
 function renderKPIs(data){
   const totalQty = data.reduce((s,r)=>s+r.qty,0);
   const vendors = new Set(data.map(r=>r.vendor)).size;
   const avg = data.length ? Math.round(totalQty/data.length) : 0;
 
-  document.getElementById("kpiShipments").textContent = fmt(data.length);
-  document.getElementById("kpiQty").textContent = fmt(totalQty);
-  document.getElementById("kpiVendors").textContent = fmt(vendors);
-  document.getElementById("kpiAvg").textContent = fmt(avg);
-
-  document.getElementById("metaCount").textContent = fmt(data.length);
+  setText("kpiShipments", fmt(data.length));
+  setText("kpiQty", fmt(totalQty));
+  setText("kpiVendors", fmt(vendors));
+  setText("kpiAvg", fmt(avg));
+  setText("metaCount", fmt(data.length));
   const uniqueDates = [...new Set(data.map(r=>r.date))].filter(Boolean).sort();
-  const metaDateEl = document.getElementById("metaDate");
+  const metaDateEl = el("metaDate");
+  if(!metaDateEl) return;
   if(uniqueDates.length===0) metaDateEl.textContent = "-";
   else if(uniqueDates.length===1) metaDateEl.textContent = enDate(uniqueDates[0]);
   else metaDateEl.textContent = t("datesRange", {n:uniqueDates.length, from:enDate(uniqueDates[0]), to:enDate(uniqueDates[uniqueDates.length-1])});
 }
 
 // ===================== CHARTS =====================
+// امسح الشارت قبل ما ترسمه تاني. من غير كده الشارت بيتراكم فوق بعض.
 function destroyCharts(){
   Object.values(charts).forEach(c=>c && c.destroy());
   charts = {};
@@ -1283,10 +1384,11 @@ function themeColors(){
 }
 
 function applyChartDefaults(){
-  const t = themeColors();
-  Chart.defaults.color = t.muted;
+  if(typeof Chart === "undefined") return;
+  const tc = themeColors();
+  Chart.defaults.color = tc.muted;
   Chart.defaults.font.family = currentLang==="ar" ? "Cairo" : "Inter";
-  Chart.defaults.borderColor = t.border;
+  Chart.defaults.borderColor = tc.border;
 }
 
 function syncThemeButton(){
@@ -1312,10 +1414,24 @@ function initTheme(){
   });
 }
 
+// شارت جديد: <canvas id="chartX"> في HTML + charts.x = new Chart(...) هنا
+// لو Chart.js مش محمّل، الدالة تخرج والدashboard يفضل شغال
 function renderCharts(data){
   destroyCharts();
+  if(typeof Chart === "undefined") return;
   applyChartDefaults();
   const tc = themeColors();
+  const can = id => {
+    const node = el(id);
+    return node && typeof node.getContext === "function" ? node : null;
+  };
+  const chartFacilityQty = can("chartFacilityQty");
+  const chartFacilityShare = can("chartFacilityShare");
+  const chartTopVendors = can("chartTopVendors");
+  const chartSku = can("chartSku");
+  const chartEmp = can("chartEmp");
+  const chartHourly = can("chartHourly");
+  if(!chartFacilityQty || !chartFacilityShare || !chartTopVendors || !chartSku || !chartEmp || !chartHourly) return;
 
   // ---- Facility aggregates ----
   const byFacilityQty = {};
@@ -1326,7 +1442,7 @@ function renderCharts(data){
   });
   const facLabels = Object.keys(byFacilityQty).sort();
 
-  charts.facilityQty = new Chart(document.getElementById("chartFacilityQty"), {
+  charts.facilityQty = new Chart(chartFacilityQty, {
     type:"bar",
     data:{
       labels: facLabels,
@@ -1349,7 +1465,7 @@ function renderCharts(data){
     }
   });
 
-  charts.facilityShare = new Chart(document.getElementById("chartFacilityShare"), {
+  charts.facilityShare = new Chart(chartFacilityShare, {
     type:"doughnut",
     data:{
       labels: facLabels,
@@ -1380,7 +1496,7 @@ function renderCharts(data){
   const topVendorsQty = Object.entries(byVendorQty).sort((a,b)=>b[1]-a[1]).slice(0,10);
   const topVendorsSku = Object.entries(byVendorSku).sort((a,b)=>b[1]-a[1]).slice(0,10);
 
-  charts.topVendors = new Chart(document.getElementById("chartTopVendors"), {
+  charts.topVendors = new Chart(chartTopVendors, {
     type:"bar",
     data:{
       labels: topVendorsQty.map(v=>v[0].length>28 ? v[0].slice(0,28)+"…" : v[0]),
@@ -1404,7 +1520,7 @@ function renderCharts(data){
     }
   });
 
-  charts.sku = new Chart(document.getElementById("chartSku"), {
+  charts.sku = new Chart(chartSku, {
     type:"bar",
     data:{
       labels: topVendorsSku.map(v=>v[0].length>26 ? v[0].slice(0,26)+"…" : v[0]),
@@ -1437,7 +1553,7 @@ function renderCharts(data){
   });
   const empLabels = Object.keys(byEmpCount).sort((a,b)=>byEmpCount[b]-byEmpCount[a]);
 
-  charts.emp = new Chart(document.getElementById("chartEmp"), {
+  charts.emp = new Chart(chartEmp, {
     type:"bar",
     data:{
       labels: empLabels,
@@ -1485,7 +1601,7 @@ function renderCharts(data){
   const activeHours = [];
   for(let h=6; h<20; h++) activeHours.push(h);
 
-  charts.hourly = new Chart(document.getElementById("chartHourly"), {
+  charts.hourly = new Chart(chartHourly, {
     type:"line",
     data:{
       labels: activeHours.map(hourLabel),
@@ -1555,7 +1671,9 @@ function renderCapacity(data){
   const totalCls = totalPct>=100 ? "over" : totalPct>=80 ? "warn" : "ok";
   const totalWidth = Math.min(totalPct,100);
 
-  document.getElementById("capacityBars").innerHTML = `
+  const capBox = el("capacityBars");
+  if(!capBox) return;
+  capBox.innerHTML = `
     <div class="cap-row cap-total">
       <div class="cap-row-head">
         <span class="fac">${t("grandTotal")}</span>
@@ -1578,8 +1696,9 @@ function renderCapacity(data){
 }
 
 // ===================== TABLE =====================
+// عمود جديد: <th data-key="اسم الحقل"> في HTML + <td> هنا + escapeHtml للنص
 function renderTable(data){
-  const q = document.getElementById("tableSearch").value.trim().toLowerCase();
+  const q = ((el("tableSearch") && el("tableSearch").value) || "").trim().toLowerCase();
   let rows = data.filter(r=>{
     if(!q) return true;
     const hay = (r.vendor+" "+r.asn+" "+r.ro+" "+r.emp+" "+r.facility).toLowerCase();
@@ -1596,25 +1715,26 @@ function renderTable(data){
     return (va - vb) * sortState.dir;
   });
 
-  const tbody = document.getElementById("tableBody");
+  const tbody = el("tableBody");
+  if(!tbody) return;
   if(!rows.length){
     tbody.innerHTML = `<tr class="empty-row"><td colspan="12">${t("empty")}</td></tr>`;
     return;
   }
   tbody.innerHTML = rows.map(r=>`
     <tr>
-      <td>${enDate(r.date)}</td>
-      <td>${r.vendor}</td>
-      <td class="mono">${r.ro}</td>
-      <td class="mono">${r.asn}</td>
-      <td><span class="facility-tag">${r.facility}</span></td>
+      <td>${escapeHtml(enDate(r.date))}</td>
+      <td>${escapeHtml(r.vendor)}</td>
+      <td class="mono">${escapeHtml(r.ro)}</td>
+      <td class="mono">${escapeHtml(r.asn)}</td>
+      <td><span class="facility-tag">${escapeHtml(r.facility)}</span></td>
       <td class="qty">${fmt(r.qty)}</td>
-      <td><span class="pill received">${r.status}</span></td>
-      <td>${r.accuracy || "—"}</td>
-      <td>${r.arrival ?? "—"}</td>
-      <td>${r.emp}</td>
-      <td>${r.cars}</td>
-      <td>${r.product ?? "—"}</td>
+      <td><span class="pill received">${escapeHtml(r.status)}</span></td>
+      <td>${escapeHtml(r.accuracy || "—")}</td>
+      <td>${escapeHtml(r.arrival ?? "—")}</td>
+      <td>${escapeHtml(r.emp)}</td>
+      <td>${escapeHtml(r.cars)}</td>
+      <td>${escapeHtml(r.product ?? "—")}</td>
     </tr>
   `).join("");
 
@@ -1645,7 +1765,8 @@ function deltaLabel(curr, prev){
 }
 
 function renderCompare(data){
-  const box = document.getElementById("compareGrid");
+  const box = el("compareGrid");
+  if(!box) return;
   const {from, to} = getDateBounds();
   const base = RAW_DATA.filter(nonDateMatch);
   const currQty = data.reduce((s,r)=>s+r.qty,0);
@@ -1679,12 +1800,13 @@ function renderQuality(data){
   const zero = data.filter(r=>!r.qty).length;
   const noEmp = data.filter(r=>!r.emp).length;
   const noAsn = data.filter(r=>!r.asn).length;
-  const el = document.getElementById("qualityList");
+  const list = el("qualityList");
+  if(!list) return;
   if(!zero && !noEmp && !noAsn){
-    el.innerHTML = `<div class="issue"><span>${t("issueOk")}</span><b>0</b></div>`;
+    list.innerHTML = `<div class="issue"><span>${t("issueOk")}</span><b>0</b></div>`;
     return;
   }
-  el.innerHTML = `
+  list.innerHTML = `
     <div class="issue"><span>${t("issueZero",{n:fmt(zero)})}</span><b>${fmt(zero)}</b></div>
     <div class="issue"><span>${t("issueEmp",{n:fmt(noEmp)})}</span><b>${fmt(noEmp)}</b></div>
     <div class="issue"><span>${t("issueAsn",{n:fmt(noAsn)})}</span><b>${fmt(noAsn)}</b></div>
@@ -1701,7 +1823,8 @@ function renderRank(data){
     map[name].sku += r.product||0;
   });
   const rows = Object.values(map).sort((a,b)=>b.qty-a.qty || b.receipts-a.receipts);
-  const body = document.getElementById("rankBody");
+  const body = el("rankBody");
+  if(!body) return;
   if(!rows.length){
     body.innerHTML = `<tr class="empty-row"><td colspan="5">${t("empty")}</td></tr>`;
     return;
@@ -1709,7 +1832,7 @@ function renderRank(data){
   body.innerHTML = rows.map((r,i)=>`
     <tr>
       <td>${i+1}</td>
-      <td>${r.emp}</td>
+      <td>${escapeHtml(r.emp)}</td>
       <td>${fmt(r.receipts)}</td>
       <td class="qty">${fmt(r.qty)}</td>
       <td>${fmt(r.sku)}</td>
@@ -1718,7 +1841,8 @@ function renderRank(data){
 }
 
 function renderAlerts(data){
-  const stack = document.getElementById("alertStack");
+  const stack = el("alertStack");
+  if(!stack) return;
   const uniqueDates = [...new Set(data.map(r=>r.date))].filter(Boolean).sort();
   const {from, to} = getDateBounds();
   const capDates = (from && to && from===to) ? [from] : uniqueDates;
@@ -1738,7 +1862,8 @@ function renderAlerts(data){
 }
 
 function renderForecast(data){
-  const box = document.getElementById("forecastBox");
+  const box = el("forecastBox");
+  if(!box) return;
   const {from, to} = getDateBounds();
   if(!from || !to || from!==to){
     box.hidden = false;
@@ -1767,8 +1892,8 @@ function renderForecast(data){
 }
 
 function renderAccuracy(data){
-  const canvas = document.getElementById("chartAccuracy");
-  if(!canvas) return;
+  const canvas = el("chartAccuracy");
+  if(!canvas || typeof Chart === "undefined") return;
   const byAcc = {};
   data.forEach(r=>{
     const k = r.accuracy || "—";
@@ -1798,6 +1923,7 @@ function renderAccuracy(data){
   });
 }
 
+// تصدير CSV UTF-8. لو ضفت عمود في الجدول، ضيفه في headers و cells
 function exportExcel(){
   const data = getFiltered();
   const headers = ["Date","Vendor","RO","ASN","Facility","Quantity","Status","Schedule","Arrival","Employee","Cars","SKU"];
@@ -1818,27 +1944,37 @@ function exportExcel(){
 }
 
 // ===================== MASTER RENDER =====================
+// ترتيب الرسم. لو بانل وقع، الباقي يتكمل بسبب try/catch
 function render(){
-  const data = getFiltered();
-  renderKPIs(data);
-  renderAlerts(data);
-  renderCompare(data);
-  renderQuality(data);
-  renderRank(data);
-  renderCapacity(data);
-  renderForecast(data);
-  renderCharts(data);
-  renderAccuracy(data);
-  renderTable(data);
+  try{
+    const data = getFiltered();
+    renderKPIs(data);
+    renderAlerts(data);
+    renderCompare(data);
+    renderQuality(data);
+    renderRank(data);
+    renderCapacity(data);
+    renderForecast(data);
+    renderCharts(data);
+    renderAccuracy(data);
+    renderTable(data);
+  }catch(err){
+    console.warn("Dashboard render recovered from an error:", err);
+  }
 }
 
 // ===================== BOOTSTRAP =====================
-initLang();
-initTheme();
-applyStaticI18n();
-initFilterEvents();
+// بداية الصفحة. loadData في الآخر عشان الأزرار تكون متوصلة قبل التحميل
+try{
+  initLang();
+  initTheme();
+  applyStaticI18n();
+  initFilterEvents();
+}catch(bootErr){
+  console.warn("Dashboard boot recovered; loading data anyway:", bootErr);
+}
 loadData();
-setInterval(loadData, AUTO_REFRESH_MS);
+startAutoRefresh(AUTO_REFRESH_MS);
 window.addEventListener("focus", loadData);
 </script>
 </body>

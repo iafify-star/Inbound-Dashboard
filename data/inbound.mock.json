@@ -1,0 +1,46 @@
+{
+  "source": "mock",
+  "updatedAt": "2026-09-18T18:00:00.000Z",
+  "settings": {
+    "refreshMs": 15000,
+    "allowPublicRead": true,
+    "features": {
+      "export": true,
+      "compare": true,
+      "print": true
+    }
+  },
+  "capacity": [
+    { "date": "2026-09-17", "facility": "CAIID01", "capacity": 59200 },
+    { "date": "2026-09-17", "facility": "CAIID03+04", "capacity": 8700 },
+    { "date": "2026-09-17", "facility": "CAIID05", "capacity": 7500 },
+    { "date": "2026-09-17", "facility": "CAIID06", "capacity": 5700 },
+    { "date": "2026-09-17", "facility": "CAIID07", "capacity": 7400 },
+    { "date": "2026-09-18", "facility": "CAIID01", "capacity": 59200 },
+    { "date": "2026-09-18", "facility": "CAIID03+04", "capacity": 8700 },
+    { "date": "2026-09-18", "facility": "CAIID05", "capacity": 7500 },
+    { "date": "2026-09-18", "facility": "CAIID06", "capacity": 5700 },
+    { "date": "2026-09-18", "facility": "CAIID07", "capacity": 7400 }
+  ],
+  "receipts": [
+    { "date": "2026-09-17", "vendor": "Egypt Foods", "ro": "473914946083917", "asn": "A06151146PN", "accuracy": "Mentioned in Schedule", "facility": "CAIID01", "qty": 17034, "status": "Received", "arrival": "12:06:12 PM", "emp": "Islam Osama", "cars": 1, "product": 30 },
+    { "date": "2026-09-17", "vendor": "Foodica plus for trade agencies", "ro": "473914645750321", "asn": "A06091839PN", "accuracy": "Mentioned in Schedule", "facility": "CAIID01", "qty": 16476, "status": "Received", "arrival": "1:14:14 PM", "emp": "BASSEM WALID", "cars": 1, "product": 11 },
+    { "date": "2026-09-17", "vendor": "Nestle Egypt", "ro": "473914532213926", "asn": "A06091814PN", "accuracy": "Mentioned in Schedule", "facility": "CAIID01", "qty": 4335, "status": "Received", "arrival": "9:34:28 AM", "emp": "Seif Mohamed", "cars": 1, "product": 43 },
+    { "date": "2026-09-17", "vendor": "Chipsy For Food Industries", "ro": "473914867883146", "asn": "A06143568PN", "accuracy": "Mentioned in Schedule", "facility": "CAIID01", "qty": 2532, "status": "Received", "arrival": "12:35:11 PM", "emp": "Ahmed Hoseny", "cars": 1, "product": 5 },
+    { "date": "2026-09-17", "vendor": "Solo Soft For Hygienic Paper", "ro": "473914127819551", "asn": "A06176073PN", "accuracy": "Mentioned in Schedule", "facility": "CAIID01", "qty": 1920, "status": "Received", "arrival": "5:00:57 PM", "emp": "Ahmed Hoseny", "cars": 1, "product": 1 },
+    { "date": "2026-09-17", "vendor": "Nestle Egypt", "ro": "473914193949246", "asn": "A06167518PN", "accuracy": "Mentioned in Schedule", "facility": "CAIID03+04", "qty": 936, "status": "Received", "arrival": "11:07:01 AM", "emp": "Ahmed Haroun", "cars": 1, "product": 4 },
+    { "date": "2026-09-17", "vendor": "Target One", "ro": "473914473759157", "asn": "A06147278PN", "accuracy": "Mentioned in Schedule", "facility": "CAIID03+04", "qty": 630, "status": "Received", "arrival": "10:43:35 AM", "emp": "Mahmoud Reda", "cars": 1, "product": 2 },
+    { "date": "2026-09-17", "vendor": "Ismailia Frozen Foods", "ro": "473914471537375", "asn": "A06080638PN", "accuracy": "Mentioned in Schedule", "facility": "CAIID05", "qty": 309, "status": "Received", "arrival": "1:46:04 PM", "emp": "Amr Sayed", "cars": 1, "product": 6 },
+    { "date": "2026-09-17", "vendor": "Al Shaheen Food Products (Fresh Farm)", "ro": "473914181377235", "asn": "A06147338PN", "accuracy": "Mentioned in Schedule", "facility": "CAIID05", "qty": 169, "status": "Received", "arrival": "11:52:29 AM", "emp": "Ahmed samy", "cars": 1, "product": 12 },
+    { "date": "2026-09-17", "vendor": "Al-Faisal Food Industrial Company", "ro": "473914931826293", "asn": "A06160972PN", "accuracy": "Mentioned in Schedule", "facility": "CAIID06", "qty": 420, "status": "Received", "arrival": "10:51:35 AM", "emp": "BASSEM WALID", "cars": 1, "product": 4 },
+    { "date": "2026-09-17", "vendor": "Danone Egypt (DANONE EGYPT S.A.E.)", "ro": "473914549262714", "asn": "A06161246PN", "accuracy": "Mentioned in Schedule", "facility": "CAIID07", "qty": 1778, "status": "Received", "arrival": "10:33:48 AM", "emp": "Ahmed Haroun", "cars": 1, "product": 24 },
+    { "date": "2026-09-17", "vendor": "Mafa Trading Company Ltd.", "ro": "473914920624711", "asn": "A06164417PN", "accuracy": "Mentioned in Schedule", "facility": "CAIID07", "qty": 1143, "status": "Received", "arrival": "10:14:03 AM", "emp": "Amr Sayed", "cars": 1, "product": 28 },
+    { "date": "2026-09-17", "vendor": "Agrovate Company", "ro": "473914526320869", "asn": "A06164423PN", "accuracy": "Mentioned in Schedule", "facility": "CAIID07", "qty": 980, "status": "Received", "arrival": "9:14:19 AM", "emp": "Ahmed samy", "cars": 1, "product": 1 },
+    { "date": "2026-09-18", "vendor": "Nestle Egypt", "ro": "473915010113593", "asn": "A06180001PN", "accuracy": "Mentioned in Schedule", "facility": "CAIID01", "qty": 2100, "status": "Received", "arrival": "9:20:11 AM", "emp": "Seif Mohamed", "cars": 1, "product": 12 },
+    { "date": "2026-09-18", "vendor": "Egypt Foods", "ro": "473915046083917", "asn": "A06180002PN", "accuracy": "Not Mentioned in Schedule", "facility": "CAIID01", "qty": 840, "status": "Received", "arrival": "10:05:40 AM", "emp": "Islam Osama", "cars": 1, "product": 6 },
+    { "date": "2026-09-18", "vendor": "Target One", "ro": "473915073759157", "asn": "A06180003PN", "accuracy": "Mentioned in Schedule", "facility": "CAIID03+04", "qty": 220, "status": "Received", "arrival": "11:18:22 AM", "emp": "Mahmoud Reda", "cars": 1, "product": 3 },
+    { "date": "2026-09-18", "vendor": "Al Ahram Poultry", "ro": "473915073450680", "asn": "A06180004PN", "accuracy": "Mentioned in Schedule", "facility": "CAIID05", "qty": 96, "status": "Received", "arrival": "12:41:10 PM", "emp": "Ahmed samy", "cars": 1, "product": 2 },
+    { "date": "2026-09-18", "vendor": "Green House", "ro": "473915050744206", "asn": "A06180005PN", "accuracy": "Mentioned in Schedule", "facility": "CAIID07", "qty": 310, "status": "Received", "arrival": "1:12:08 PM", "emp": "Amr Sayed", "cars": 1, "product": 5 },
+    { "date": "2026-09-18", "vendor": "Edita For Trade and Distribution", "ro": "473915081511440", "asn": "A06180006PN", "accuracy": "Mentioned in Schedule", "facility": "CAIID01", "qty": 640, "status": "In Progress", "arrival": "2:03:55 PM", "emp": "Abdelwhab", "cars": 1, "product": 2 }
+  ]
+}
