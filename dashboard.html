@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Daily Receiving Dashboard | noon minutes</title>
+<link rel="icon" href="assets/noon-minutes-logo.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#f4f5f7;
+    --panel:#ffffff;
+    --panel-2:#fafaf6;
+    --border:#e7e8ec;
+    --text:#141414;
+    --muted:#6b6f76;
+    --yellow:#f5e023;
+    --yellow-dark:#d8c400;
+    --red:#db3332;
+    --red-dark:#b92625;
+    --green:#1fb08f;
+    --black:#141414;
+    --radius:16px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter', 'Segoe UI', Tahoma, sans-serif;
+    min-height:100vh;
+  }
+  .wrap{max-width:1440px;margin:0 auto;padding:22px 24px 60px;}
+
+  /* Header */
+  header.top{
+    display:flex;justify-content:space-between;align-items:flex-start;
+    flex-wrap:wrap;gap:16px;margin-bottom:22px;
+  }
+  .brand{display:flex;align-items:center;gap:14px;}
+  .brand .logo-img{
+    height:54px;width:auto;border-radius:12px;display:block;
+    box-shadow:0 6px 18px rgba(0,0,0,.12);
+  }
+  .brand h1{font-size:22px;margin:0;font-weight:900;color:var(--black);}
+  .brand p{margin:2px 0 0;color:var(--muted);font-size:13px;}
+  .top-meta{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+  .badge{
+    background:var(--panel);border:1px solid var(--border);
+    padding:8px 14px;border-radius:999px;font-size:13px;color:var(--muted);
+    display:flex;align-items:center;gap:8px;
+  }
+  .badge b{color:var(--text);}
+  .badge.live{border-color:rgba(31,176,143,.4); color:var(--green);}
+  .badge.cached{border-color:rgba(219,51,50,.35); color:var(--red);}
+  .badge.loading{border-color:rgba(216,196,0,.5); color:var(--yellow-dark);}
+  .dot{width:8px;height:8px;border-radius:50%;background:currentColor;box-shadow:0 0 8px currentColor;}
+  .btn-refresh{
+    background:var(--yellow);border:none;color:var(--black);font-weight:800;
+    border-radius:999px;padding:9px 18px;font-size:13px;cursor:pointer;font-family:inherit;
+    transition:.15s;box-shadow:0 4px 12px rgba(245,224,35,.4);
+  }
+  .btn-refresh:hover{background:var(--yellow-dark);}
+  .btn-refresh:disabled{opacity:.6;cursor:default;}
+  /* Filters */
+  .filters{
+    display:flex;flex-wrap:wrap;gap:12px;margin-bottom:22px;
+    background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+    padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.03);
+  }
+  .filters .field{display:flex;flex-direction:column;gap:6px;min-width:170px;flex:1;}
+  .filters label{font-size:12px;color:var(--muted);font-weight:600;}
+  .filters select, .filters input{
+    background:var(--panel-2);border:1px solid var(--border);color:var(--text);
+    border-radius:10px;padding:9px 12px;font-size:14px;font-family:inherit;outline:none;
+  }
+  .filters select:focus, .filters input:focus{border-color:var(--yellow-dark);}
+  .filters .reset{
+    align-self:flex-end;background:transparent;border:1px solid var(--border);
+    color:var(--muted);border-radius:10px;padding:9px 16px;cursor:pointer;font-family:inherit;font-size:13px;
+    transition:.15s;font-weight:600;
+  }
+  .filters .reset:hover{border-color:var(--red);color:var(--red);}
+
+  /* KPI cards */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px;}
+  @media (max-width:900px){.kpis{grid-template-columns:repeat(2,1fr);}}
+  @media (max-width:480px){.kpis{grid-template-columns:1fr;}}
+  .kpi{
+    background:var(--panel);
+    border:1px solid var(--border);border-radius:var(--radius);
+    padding:16px 16px 14px;position:relative;overflow:hidden;
+    box-shadow:0 1px 3px rgba(0,0,0,.03);
+  }
+  .kpi .icon{
+    width:36px;height:36px;border-radius:10px;font-size:17px;margin-bottom:10px;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .kpi.c1 .icon{background:var(--yellow);}
+  .kpi.c2 .icon{background:var(--red);color:#fff;}
+  .kpi.c3 .icon{background:var(--black);color:var(--yellow);}
+  .kpi.c5 .icon{background:var(--yellow-dark);color:#fff;}
+  .kpi .label{font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:600;}
+  .kpi .value{font-size:26px;font-weight:900;color:var(--black);}
+  .kpi .sub{font-size:11px;color:var(--muted);margin-top:4px;}
+
+  /* Grid of charts */
+  .grid{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+  @media (max-width:980px){.grid,.grid2{grid-template-columns:1fr;}}
+  .panel{
+    background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+    padding:18px;box-shadow:0 1px 3px rgba(0,0,0,.03);
+  }
+  .panel h3{margin:0 0 4px;font-size:15px;font-weight:800;color:var(--black);}
+  .panel .desc{color:var(--muted);font-size:12px;margin:0 0 14px;}
+  .chart-box{position:relative;height:300px;}
+  .chart-box.tall{height:360px;}
+
+  /* Table */
+  .table-panel{margin-top:8px;}
+  .table-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;}
+  .search{
+    background:var(--panel-2);border:1px solid var(--border);border-radius:10px;
+    padding:9px 14px;color:var(--text);font-family:inherit;font-size:13px;min-width:240px;
+  }
+  .table-scroll{overflow-x:auto;border-radius:12px;border:1px solid var(--border);}
+  table{width:100%;border-collapse:collapse;font-size:13px;min-width:1100px;}
+  thead th{
+    background:var(--panel-2);color:var(--muted);text-align:left;padding:10px 12px;
+    font-weight:700;font-size:12px;position:sticky;top:0;white-space:nowrap;border-bottom:1px solid var(--border);
+    cursor:pointer;user-select:none;
+  }
+  thead th:hover{color:var(--text);}
+  thead th .arrow{opacity:.5;font-size:10px;margin-left:4px;}
+  tbody td{padding:9px 12px;border-bottom:1px solid var(--border);white-space:nowrap;color:var(--text);}
+  tbody tr:hover{background:rgba(245,224,35,.14);}
+  .pill{padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;display:inline-block;}
+  .pill.received{background:rgba(31,176,143,.14);color:var(--green);}
+  .facility-tag{
+    background:var(--panel-2);border:1px solid var(--border);border-radius:8px;
+    padding:2px 8px;font-size:11px;color:var(--muted);font-weight:600;
+  }
+  .mono{font-family:Consolas, monospace;color:var(--muted);font-size:12px;}
+  .qty{font-weight:800;color:var(--text);}
+  footer{text-align:center;color:var(--muted);font-size:12px;margin-top:30px;}
+  footer a{color:var(--red-dark);text-decoration:none;font-weight:700;}
+  .empty-row td{text-align:center;color:var(--muted);padding:30px;}
+
+  .legend-row{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:11px;color:var(--muted);}
+  .legend-row span{display:inline-flex;align-items:center;gap:6px;}
+  .legend-row i{width:9px;height:9px;border-radius:50%;display:inline-block;}
+
+  /* Capacity panel */
+  .cap-row{margin-bottom:16px;}
+  .cap-row:last-child{margin-bottom:0;}
+  .cap-row-head{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;margin-bottom:7px;gap:10px;}
+  .cap-row-head .fac{font-weight:800;font-size:14px;color:var(--black);}
+  .cap-row-head .nums{color:var(--muted);font-size:12px;white-space:nowrap;}
+  .cap-row-head .nums b{font-size:14px;}
+  .cap-track{background:var(--panel-2);border:1px solid var(--border);border-radius:999px;height:14px;overflow:hidden;position:relative;}
+  .cap-fill{height:100%;border-radius:999px;transition:width .5s ease;}
+  .cap-fill.ok{background:linear-gradient(90deg,#1fb08f,#3fd6b0);}
+  .cap-fill.warn{background:linear-gradient(90deg,var(--yellow-dark),var(--yellow));}
+  .cap-fill.over{background:linear-gradient(90deg,var(--red-dark),var(--red));}
+  .cap-total .cap-row-head .fac{font-size:15px;}
+  .cap-total .cap-track{height:20px;}
+  .cap-divider{border:none;border-top:1px solid var(--border);margin:18px 0 16px;opacity:.8;}
+  .cap-note{font-size:11px;color:var(--muted);margin-top:4px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">
+      <img class="logo-img" src="assets/noon-minutes-logo.png" alt="noon minutes" />
+      <div>
+        <h1>Daily Receiving Dashboard</h1>
+        <p>Warehouse Receiving Operations &mdash; noon minutes</p>
+      </div>
+    </div>
+    <div class="top-meta">
+      <div class="badge live" id="liveBadge"><span class="dot"></span> Live from Google Sheets</div>
+      <div class="badge">📅 <b id="metaDate">-</b></div>
+      <div class="badge">📊 Shipments: <b id="metaCount">-</b></div>
+      <div class="badge">🕒 Updated: <b id="metaUpdated">-</b></div>
+      <button class="btn-refresh" id="btnRefresh">🔄 Refresh</button>
+    </div>
+  </header>
+
+  <div class="filters">
+    <div class="field">
+      <label>Date</label>
+      <select id="fDate"><option value="">All Dates</option></select>
+    </div>
+    <div class="field">
+      <label>Facility / Warehouse</label>
+      <select id="fFacility"><option value="">All</option></select>
+    </div>
+    <div class="field">
+      <label>Employee</label>
+      <select id="fEmp"><option value="">All</option></select>
+    </div>
+    <div class="field">
+      <label>Status</label>
+      <select id="fStatus"><option value="">All</option></select>
+    </div>
+    <div class="field" style="flex:2;min-width:240px;">
+      <label>Search Vendor / ASN / RO</label>
+      <input id="fSearch" type="text" placeholder="Type vendor name or ASN number..." />
+    </div>
+    <button class="reset" id="btnReset">↺ Reset Filters</button>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi c1"><span class="icon">🚚</span><div class="label">Total Shipments (ASNs)</div><div class="value" id="kpiShipments">0</div><div class="sub">Total Shipments</div></div>
+    <div class="kpi c2"><span class="icon">📦</span><div class="label">Total Quantity Received</div><div class="value" id="kpiQty">0</div><div class="sub">Total Units Received</div></div>
+    <div class="kpi c3"><span class="icon">🏭</span><div class="label">Vendors</div><div class="value" id="kpiVendors">0</div><div class="sub">Unique Vendors</div></div>
+    <div class="kpi c5"><span class="icon">📈</span><div class="label">Avg Quantity / Shipment</div><div class="value" id="kpiAvg">0</div><div class="sub">Avg Qty / Shipment</div></div>
+  </div>
+
+  <div class="panel" style="margin-bottom:16px;">
+    <h3>📊 Facility Capacity Utilization</h3>
+    <p class="desc">Quantity Received vs. Maximum Capacity per Facility</p>
+    <div id="capacityBars"></div>
+  </div>
+
+  <div class="grid">
+    <div class="panel">
+      <h3>Quantity Received by Facility</h3>
+      <p class="desc">Total units received, grouped by facility</p>
+      <div class="chart-box"><canvas id="chartFacilityQty"></canvas></div>
+    </div>
+    <div class="panel">
+      <h3>Shipments Share by Facility</h3>
+      <p class="desc">Distribution of shipment count by facility</p>
+      <div class="chart-box"><canvas id="chartFacilityShare"></canvas></div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="panel">
+      <h3>Top 10 Vendors by Quantity</h3>
+      <p class="desc">Top 10 Vendors by Quantity Received</p>
+      <div class="chart-box tall"><canvas id="chartTopVendors"></canvas></div>
+    </div>
+    <div class="panel">
+      <h3>Employee Performance</h3>
+      <p class="desc">Shipments Handled per Employee</p>
+      <div class="chart-box tall"><canvas id="chartEmp"></canvas></div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="panel">
+      <h3>Receiving Distribution Throughout the Day</h3>
+      <p class="desc">Shipments Received by Hour of Day</p>
+      <div class="chart-box"><canvas id="chartHourly"></canvas></div>
+    </div>
+    <div class="panel">
+      <h3>SKU Count per Vendor &mdash; Top 10</h3>
+      <p class="desc">Top 10 Vendors by SKU Count</p>
+      <div class="chart-box"><canvas id="chartSku"></canvas></div>
+    </div>
+  </div>
+
+  <div class="panel table-panel">
+    <div class="table-head">
+      <div>
+        <h3 style="margin-bottom:4px;">Detailed Receiving Log</h3>
+        <p class="desc" style="margin:0;">Click a column header to sort</p>
+      </div>
+      <input class="search" id="tableSearch" placeholder="🔍 Quick search in table..." />
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th data-key="date">Date</th>
+            <th data-key="vendor">Vendor</th>
+            <th data-key="ro">RO</th>
+            <th data-key="asn">ASN</th>
+            <th data-key="facility">Facility</th>
+            <th data-key="qty">Quantity</th>
+            <th data-key="status">Status</th>
+            <th data-key="arrival">Arrival Time</th>
+            <th data-key="emp">Employee</th>
+            <th data-key="cars">Cars</th>
+            <th data-key="product">SKU</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <footer>Interactive dashboard synced live from Google Sheets &mdash; Daily Receiving • noon minutes Warehouses</footer>
+</div>
+
+<script>
+// ===================== CONFIG =====================
+const SHEET_ID = "1D1HKYe0wjCb0sroYOgdkYLfcrkdNSWKKIYDaD6D9_Ns";
+const CSV_BASE_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0`;
+const AUTO_REFRESH_MS = 120000; // 2 minutes
+
+// ===================== FACILITY MERGE =====================
+// CAIID03 and CAIID04 are merged into a single facility group across all filters, charts, and the table
+const FACILITY_MERGE = { "CAIID03":"CAIID03+04", "CAIID04":"CAIID03+04" };
+
+// ===================== CAPACITY DATA =====================
+// Daily maximum capacity per facility (in units) — source: capacity report.
+// Scaled automatically by the number of distinct dates in the current view.
+const CAPACITY_DATA = {
+  "CAIID01":   59200,
+  "CAIID03+04": 1500 + 7200, // CAIID03 (1,500) + CAIID04 (7,200)
+  "CAIID05":    7500,
+  "CAIID06":    5700,
+  "CAIID07":    7400,
+};
+const CAPACITY_ORDER = ["CAIID01","CAIID03+04","CAIID05","CAIID06","CAIID07"];
+
+// ===================== FALLBACK SNAPSHOT =====================
+// Used only if the live Google Sheets fetch fails (e.g. offline, or sheet not shared publicly).
+const FALLBACK_DATA = [
+{date:"2026-09-17",vendor:"Yaz for Industry and Trade (LYCHEE)",ro:"473914097095289",asn:"A06091821PN",accuracy:"Mentioned in Schedule",facility:"CAIID01",qty:360,status:"Received",arrival:"1:41:48 PM",emp:"Mahmoud Wallid",cars:1,product:3},
+{date:"2026-09-17",vendor:"Yaz for Industry and Trade (LYCHEE)",ro:"473914780352262",asn:"A06117455PN",accuracy:"Mentioned in Schedule",facility:"CAIID01",qty:288,status:"Received",arrival:"1:41:48 PM",emp:"Mahmoud Wallid",cars:1,product:2},
+{date:"2026-09-17",vendor:"Yaz for Industry and Trade (LYCHEE)",ro:"473914709434937",asn:"A06143490PN",accuracy:"Mentioned in Schedule",facility:"CAIID01",qty:408,status:"Received",arrival:"1:45:35 PM",emp:"Mahmoud Wallid",cars:1,product:3},
+{date:"2026-09-17",vendor:"Al-Amir Company for Commercial Agencies and Advanced industries",ro:"473914442660436",asn:"A06143541PN",accuracy:"Mentioned in Schedule",facility:"CAIID01",qty:2048,status:"Received",arrival:"1:33:03 PM",emp:"Abdelwhab",cars:1,product:11},
+{date:"2026-09-17",vendor:"Chipsy For Food Industries",ro:"473914867883146",asn:"A06143568PN",accuracy:"Mentioned in Schedule",facility:"CAIID01",qty:2532,status:"Received",arrival:"12:35:11 PM",emp:"Ahmed Hoseny",cars:1,product:5},
+{date:"2026-09-17",vendor:"Cosmo hair addict",ro:"473914337060906",asn:"A06091862PN",accuracy:"Mentioned in Schedule",facility:"CAIID01",qty:120,status:"Received",arrival:"9:08:09 AM",emp:"Islam Osama",cars:1,product:3},
+{date:"2026-09-17",vendor:"Cosmo hair addict",ro:"473914175137165",asn:"A06117500PN",accuracy:"Mentioned in Schedule",facility:"CAIID01",qty:180,status:"Received",arrival:"9:07:51 AM",emp:"Islam Osama",cars:1,product:3},
+{date:"2026-09-17",vendor:"Cosmo hair addict",ro:"473914665928242",asn:"A06143528PN",accuracy:"Mentioned in Schedule",facility:"CAIID01",qty:296,status:"Received",arrival:"9:07:48 AM",emp:"Islam Osama",cars:1,product:5},
+{date:"2026-09-17",vendor:"Edita For Trade and Distribution",ro:"473914381511440",asn:"A06127077PN",accuracy:"Mentioned in Schedule",facility:"CAIID01",qty:1488,status:"Received",arrival:"12:49:50 PM",emp:"Abdelwhab",cars:1,product:1},
+{date:"2026-09-17",vendor:"Egypt Foods",ro:"473914946083917",asn:"A06151146PN",accuracy:"Mentioned in Schedule",facility:"CAIID01",qty:17034,status:"Received",arrival:"12:06:12 PM",emp:"Islam Osama",cars:1,product:30},
+{date:"2026-09-17",vendor:"Foodica plus for trade agencies",ro:"473914645750321",asn:"A06091839PN",accuracy:"Mentioned in Schedule",facility:"CAIID01",qty:16476,status:"Received",arrival:"1:14:14 PM",emp:"BASSEM WALID",cars:1,product:11},
+{date:"2026-09-17",vendor:"Nestle Egypt",ro:"473914532213926",asn:"A06091814PN",accuracy:"Mentioned in Schedule",facility:"CAIID01",qty:4335,status:"Received",arrival:"9:34:28 AM",emp:"Seif Mohamed",cars:1,product:43},
+{date:"2026-09-17",vendor:"Nestle Egypt",ro:"473914010113593",asn:"A06143484PN",accuracy:"Mentioned in Schedule",facility:"CAIID01",qty:1789,status:"Received",arrival:"9:34:29 AM",emp:"Seif Mohamed",cars:1,product:16},
+{date:"2026-09-17",vendor:"Nestle Egypt",ro:"473914165979587",asn:"A06161134PN",accuracy:"Mentioned in Schedule",facility:"CAIID01",qty:654,status:"Received",arrival:"9:39:11 AM",emp:"Seif Mohamed",cars:1,product:null},
+{date:"2026-09-17",vendor:"Prisma Foods",ro:"473914505254361",asn:"A06127076PN",accuracy:"Mentioned in Schedule",facility:"CAIID01",qty:1200,status:"Received",arrival:"9:11:23 AM",emp:"Abdelwhab",cars:1,product:1},
+{date:"2026-09-17",vendor:"Prisma Foods",ro:"473914292682450",asn:"A06143477PN",accuracy:"Mentioned in Schedule",facility:"CAIID01",qty:544,status:"Received",arrival:"9:11:23 AM",emp:"Abdelwhab",cars:1,product:8},
+{date:"2026-09-17",vendor:"Port Said for Modern Trade Development (Sudanco)",ro:"473914221652327",asn:"A06143488PN",accuracy:"Mentioned in Schedule",facility:"CAIID01",qty:3528,status:"Received",arrival:"2:50:59 PM",emp:"Seif Mohamed",cars:1,product:5},
+{date:"2026-09-17",vendor:"B.S Company for Trade and Supplies",ro:"473914769597940",asn:"A06117457PN",accuracy:"Mentioned in Schedule",facility:"CAIID01",qty:288,status:"Received",arrival:"12:27:44 PM",emp:"BASSEM WALID",cars:1,product:1},
+{date:"2026-09-17",vendor:"B.S Company for Trade and Supplies",ro:"473914577655998",asn:"A06143492PN",accuracy:"Mentioned in Schedule",facility:"CAIID01",qty:1818,status:"Received",arrival:"12:28:05 PM",emp:"BASSEM WALID",cars:1,product:7},
+{date:"2026-09-17",vendor:"Habouba Family Co. for Import, Export & Commercial Agencies of Food Products",ro:"473914883588709",asn:"A06143557PN",accuracy:"Mentioned in Schedule",facility:"CAIID01",qty:346,status:"Received",arrival:"9:11:55 AM",emp:"Mahmoud Waiied",cars:1,product:6},
+{date:"2026-09-17",vendor:"Cartona for Information Technology",ro:"473914413408759",asn:"A05968320PN",accuracy:"Mentioned in Schedule",facility:"CAIID01",qty:896,status:"Received",arrival:"11:04:32 AM",emp:"Ahmed Hoseny",cars:1,product:9},
+{date:"2026-09-17",vendor:"Cartona for Information Technology",ro:"473914244900738",asn:"A06041321PN",accuracy:"Mentioned in Schedule",facility:"CAIID01",qty:536,status:"Received",arrival:null,emp:"Ahmed Hoseny",cars:1,product:8},
+{date:"2026-09-17",vendor:"Cartona for Information Technology",ro:"473914333257431",asn:"A06065865PN",accuracy:"Mentioned in Schedule",facility:"CAIID01",qty:384,status:"Received",arrival:null,emp:"Ahmed Hoseny",cars:1,product:1},
+{date:"2026-09-17",vendor:"Habits for Food Industries",ro:"473914531454410",asn:"A06168119PN",accuracy:"Mentioned in Schedule",facility:"CAIID01",qty:600,status:"Received",arrival:null,emp:"Mohamed Safwat",cars:1,product:1},
+{date:"2026-09-17",vendor:"Nestle Egypt",ro:"473914193949246",asn:"A06167518PN",accuracy:"Mentioned in Schedule",facility:"CAIID03+04",qty:936,status:"Received",arrival:"11:07:01 AM",emp:"Ahmed Haroun",cars:1,product:4},
+{date:"2026-09-17",vendor:"Nestle Egypt",ro:"473914959405806",asn:"A06147118PN",accuracy:"Mentioned in Schedule",facility:"CAIID03+04",qty:360,status:"Received",arrival:"11:07:03 AM",emp:"Ahmed Haroun",cars:1,product:2},
+{date:"2026-09-17",vendor:"Al Shaheen Food Products (Fresh Farm)",ro:"473914241258007",asn:"A06147336PN",accuracy:"Mentioned in Schedule",facility:"CAIID03+04",qty:212,status:"Received",arrival:"11:52:21 AM",emp:"Ahmed samy",cars:1,product:7},
+{date:"2026-09-17",vendor:"Iconic FMCG - Iconic Retail Trading",ro:"473914397953957",asn:"A06153604PN",accuracy:"Mentioned in Schedule",facility:"CAIID03+04",qty:131,status:"Received",arrival:"1:47:51 PM",emp:"Amr Sayed",cars:1,product:7},
+{date:"2026-09-17",vendor:"Target One",ro:"473914473759157",asn:"A06147278PN",accuracy:"Mentioned in Schedule",facility:"CAIID03+04",qty:630,status:"Received",arrival:"10:43:35 AM",emp:"Mahmoud Reda",cars:1,product:2},
+{date:"2026-09-17",vendor:"Target One",ro:"473914276837216",asn:"A06147277PN",accuracy:"Mentioned in Schedule",facility:"CAIID03+04",qty:44,status:"Received",arrival:"10:43:36 AM",emp:"Mahmoud Reda",cars:1,product:3},
+{date:"2026-09-17",vendor:"Khaled Khashala & Partners",ro:"473914063542411",asn:"A06147270PN",accuracy:"Mentioned in Schedule",facility:"CAIID03+04",qty:300,status:"Received",arrival:"2:06:47 PM",emp:"Amr Sayed",cars:1,product:4},
+{date:"2026-09-17",vendor:"Al Safa Company for Food Manufacturing, Filling & Packaging",ro:"473914266531552",asn:"A06147293PN",accuracy:"Mentioned in Schedule",facility:"CAIID03+04",qty:240,status:"Received",arrival:"12:26:46 PM",emp:"Ahmed Haroun",cars:1,product:3},
+{date:"2026-09-17",vendor:"Ismailia Frozen Foods",ro:"473914471537375",asn:"A06080638PN",accuracy:"Mentioned in Schedule",facility:"CAIID05",qty:309,status:"Received",arrival:"1:46:04 PM",emp:"Amr Sayed",cars:1,product:6},
+{date:"2026-09-17",vendor:"Ismailia Frozen Foods",ro:"473914737496201",asn:"A06091346PN",accuracy:"Mentioned in Schedule",facility:"CAIID05",qty:60,status:"Received",arrival:"1:46:05 PM",emp:"Amr Sayed",cars:1,product:3},
+{date:"2026-09-17",vendor:"Ismailia Frozen Foods",ro:"473914363918247",asn:"A06147279PN",accuracy:"Mentioned in Schedule",facility:"CAIID05",qty:200,status:"Received",arrival:"1:46:05 PM",emp:"Amr Sayed",cars:1,product:4},
+{date:"2026-09-17",vendor:"Al Ahram Poultry",ro:"473914273450680",asn:"A06115829PN",accuracy:"Mentioned in Schedule",facility:"CAIID05",qty:128,status:"Received",arrival:"3:07:55 PM",emp:"Ahmed samy",cars:1,product:2},
+{date:"2026-09-17",vendor:"Al Ahram Poultry",ro:"473914970032821",asn:"A06147283PN",accuracy:"Mentioned in Schedule",facility:"CAIID05",qty:32,status:"Received",arrival:"3:07:56 PM",emp:"Ahmed samy",cars:1,product:2},
+{date:"2026-09-17",vendor:"Al Shaheen Food Products (Fresh Farm)",ro:"473914181377235",asn:"A06147338PN",accuracy:"Mentioned in Schedule",facility:"CAIID05",qty:169,status:"Received",arrival:"11:52:29 AM",emp:"Ahmed samy",cars:1,product:12},
+{date:"2026-09-17",vendor:"Al Shaheen Food Products (Fresh Farm)",ro:"473914027644490",asn:"A06168162PN",accuracy:"Mentioned in Schedule",facility:"CAIID05",qty:127,status:"Received",arrival:"11:52:13 AM",emp:"Ahmed samy",cars:1,product:2},
+{date:"2026-09-17",vendor:"Egyptian Company for Recycling & Sustainable Development",ro:"473914996915326",asn:"A06164045PN",accuracy:"Mentioned in Schedule",facility:"CAIID05",qty:180,status:"Received",arrival:"12:57:48 PM",emp:"Mohammed Ismail",cars:1,product:3},
+{date:"2026-09-17",vendor:"Al Dahan Company for Tourism Projects Management",ro:"473914696396038",asn:"A06147312PN",accuracy:"Mentioned in Schedule",facility:"CAIID05",qty:173,status:"Received",arrival:"1:46:47 PM",emp:"Mahmoud Reda",cars:1,product:3},
+{date:"2026-09-17",vendor:"Al Safa Company for Food Manufacturing, Filling & Packaging",ro:"473914149463236",asn:"A06165132PN",accuracy:"Mentioned in Schedule",facility:"CAIID05",qty:500,status:"Received",arrival:"12:26:53 PM",emp:"Ahmed Haroun",cars:1,product:1},
+{date:"2026-09-17",vendor:"Yaz for Industry and Trade (LYCHEE)",ro:"473914763648224",asn:"A06161245PN",accuracy:"Mentioned in Schedule",facility:"CAIID07",qty:203,status:"Received",arrival:"12:02:50 PM",emp:"Ahmed Haroun",cars:1,product:6},
+{date:"2026-09-17",vendor:"Al-Faisal Food Industrial Company",ro:"473914931826293",asn:"A06160972PN",accuracy:"Mentioned in Schedule",facility:"CAIID06",qty:420,status:"Received",arrival:"10:51:35 AM",emp:"BASSEM WALID",cars:1,product:4},
+{date:"2026-09-17",vendor:"Dakahlia Slaughterhouse Company",ro:"473914003851142",asn:"A06161250PN",accuracy:"Mentioned in Schedule",facility:"CAIID07",qty:104,status:"Received",arrival:"2:16:50 PM",emp:"Ahmed Haroun",cars:1,product:7},
+{date:"2026-09-17",vendor:"Danone Egypt (DANONE EGYPT S.A.E.)",ro:"473914549262714",asn:"A06161246PN",accuracy:"Mentioned in Schedule",facility:"CAIID07",qty:1778,status:"Received",arrival:"10:33:48 AM",emp:"Ahmed Haroun",cars:1,product:24},
+{date:"2026-09-17",vendor:"Green House",ro:"473914750744206",asn:"A06156801PN",accuracy:"Mentioned in Schedule",facility:"CAIID07",qty:430,status:"Received",arrival:"11:06:24 AM",emp:"Amr Sayed",cars:1,product:6},
+{date:"2026-09-17",vendor:"Khodar Trading And Marketing",ro:"473914705909125",asn:"A06164412PN",accuracy:"Mentioned in Schedule",facility:"CAIID07",qty:696,status:"Received",arrival:"11:21:50 AM",emp:"Amr Sayed",cars:1,product:25},
+{date:"2026-09-17",vendor:"M.B",ro:"473914830477130",asn:"A06161249PN",accuracy:"Mentioned in Schedule",facility:"CAIID07",qty:252,status:"Received",arrival:"10:25:00 AM",emp:"Ahmed Haroun",cars:1,product:8},
+{date:"2026-09-17",vendor:"Al Shaheen Food Products (Fresh Farm)",ro:"473914503160787",asn:"A06161251PN",accuracy:"Mentioned in Schedule",facility:"CAIID07",qty:970,status:"Received",arrival:"11:52:39 AM",emp:"Ahmed samy",cars:1,product:17},
+{date:"2026-09-17",vendor:"Al Waha Fresh Foods",ro:"473914146841519",asn:"A06161248PN",accuracy:"Mentioned in Schedule",facility:"CAIID07",qty:47,status:"Received",arrival:"11:42:33 AM",emp:"Ahmed samy",cars:1,product:8},
+{date:"2026-09-17",vendor:"Agrovate Company",ro:"473914526320869",asn:"A06164423PN",accuracy:"Mentioned in Schedule",facility:"CAIID07",qty:980,status:"Received",arrival:"9:14:19 AM",emp:"Ahmed samy",cars:1,product:1},
+{date:"2026-09-17",vendor:"Agrovate Company",ro:"473914201173854",asn:"A06164415PN",accuracy:"Mentioned in Schedule",facility:"CAIID07",qty:673,status:"Received",arrival:"9:14:19 AM",emp:"Ahmed samy",cars:1,product:20},
+{date:"2026-09-17",vendor:"Al Sabeel Al Gadida Poultry Production Company",ro:"473914493820828",asn:"A06161243PN",accuracy:"Mentioned in Schedule",facility:"CAIID07",qty:176,status:"Received",arrival:"10:03:07 AM",emp:"Ahmed Haroun",cars:1,product:8},
+{date:"2026-09-17",vendor:"Mafa Trading Company Ltd.",ro:"473914920624711",asn:"A06164417PN",accuracy:"Mentioned in Schedule",facility:"CAIID07",qty:1143,status:"Received",arrival:"10:14:03 AM",emp:"Amr Sayed",cars:1,product:28},
+{date:"2026-09-17",vendor:"Nefertoot for Land Reclamation & Cultivation",ro:"473914900084287",asn:"A06164414PN",accuracy:"Mentioned in Schedule",facility:"CAIID07",qty:278,status:"Received",arrival:"9:27:56 AM",emp:"Amr Sayed",cars:1,product:7},
+{date:"2026-09-17",vendor:"Ekhwan Hashem Poultry Company",ro:"473914774859237",asn:"A06146546PN",accuracy:"Mentioned in Schedule",facility:"CAIID03+04",qty:484,status:"Received",arrival:"12:00:38 PM",emp:"Mahmoud Reda",cars:1,product:12},
+{date:"2026-09-17",vendor:"Ahmed Wahby Tomy Hussein",ro:"473914249327197",asn:"A06071786PN",accuracy:"Mentioned in Schedule",facility:"CAIID01",qty:911,status:"Received",arrival:"3:23:50 PM",emp:"Mohamed Safwat",cars:1,product:18},
+{date:"2026-09-17",vendor:"Yaz for Industry and Trade (LYCHEE)",ro:"473914061618033",asn:"A06176194PN",accuracy:"Mentioned in Schedule",facility:"CAIID03+04",qty:427,status:"Received",arrival:"3:05:22 PM",emp:"Mahmoud Reda",cars:1,product:4},
+{date:"2026-09-17",vendor:"Solo Soft For Hygienic Paper",ro:"473914127819551",asn:"A06176073PN",accuracy:"Mentioned in Schedule",facility:"CAIID01",qty:1920,status:"Received",arrival:"5:00:57 PM",emp:"Ahmed Hoseny",cars:1,product:1},
+];
+
+// ===================== HELPERS =====================
+const COLORS = ["#f5e023","#db3332","#141414","#6b6f76","#1fb08f","#0abde3","#ff9f43","#a06bff"];
+const fmt = n => n.toLocaleString("en-US");
+const enDate = d => {
+  const dt = new Date(d+"T00:00:00");
+  if(isNaN(dt.getTime())) return d;
+  return dt.toLocaleDateString("en-US", {year:"numeric",month:"long",day:"numeric"});
+};
+function timeToMinutes(t){
+  if(!t) return null;
+  const m = t.match(/(\d+):(\d+):(\d+)\s*(AM|PM)/i);
+  if(!m) return null;
+  let h = parseInt(m[1],10), min = parseInt(m[2],10);
+  const ap = m[4].toUpperCase();
+  if(ap==="PM" && h!==12) h += 12;
+  if(ap==="AM" && h===12) h = 0;
+  return h*60+min;
+}
+function hourLabel(h){
+  const ap = h>=12 ? "PM" : "AM";
+  let hh = h%12; if(hh===0) hh=12;
+  return hh+":00 "+ap;
+}
+function unique(arr, key){ return [...new Set(arr.map(r=>r[key]))].filter(Boolean).sort(); }
+
+let RAW_DATA = [];
+let charts = {};
+let sortState = {key:"arrival", dir:1};
+let datesInitialized = false;
+
+// ===================== LIVE DATA LOADING =====================
+function pick(row, keys){
+  for(const k of Object.keys(row)){
+    const kn = k.trim().toLowerCase();
+    for(const want of keys){
+      if(kn === want.toLowerCase()) return row[k];
+    }
+  }
+  return undefined;
+}
+
+function normalizeRow(row){
+  const vendor = (pick(row,["Vendor"])||"").toString().trim();
+  const asn = (pick(row,["ASN"])||"").toString().trim();
+  if(!vendor && !asn) return null;
+
+  const dateRaw = (pick(row,["Date"])||"").toString().trim();
+  let iso = dateRaw;
+  const parsedDate = new Date(dateRaw);
+  if(dateRaw && !isNaN(parsedDate.getTime())){
+    iso = parsedDate.toISOString().slice(0,10);
+  }
+
+  const qtyRaw = (pick(row,["Quantity Received"])||"0").toString().replace(/,/g,"").trim();
+  const carsRaw = (pick(row,["Cars"])||"0").toString().replace(/,/g,"").trim();
+  const productRaw = (pick(row,["Proudct","Product"])||"").toString().replace(/,/g,"").trim();
+  const arrivalRaw = (pick(row,["Arrival Time"])||"").toString().trim();
+
+  let facility = (pick(row,["Facility"])||"").toString().trim();
+  if(FACILITY_MERGE[facility]) facility = FACILITY_MERGE[facility];
+
+  return {
+    date: iso,
+    vendor,
+    ro: (pick(row,["RO"])||"").toString().trim(),
+    asn,
+    accuracy: (pick(row,["Supplier Schedule Accuracy"])||"").toString().trim(),
+    facility,
+    qty: parseInt(qtyRaw,10) || 0,
+    status: (pick(row,["Status"])||"").toString().trim() || "Received",
+    arrival: arrivalRaw || null,
+    emp: (pick(row,["Emp Name"])||"").toString().trim(),
+    cars: parseInt(carsRaw,10) || 0,
+    product: productRaw ? (parseInt(productRaw,10) || null) : null,
+  };
+}
+
+function setLiveBadge(state){
+  const el = document.getElementById("liveBadge");
+  el.classList.remove("live","cached","loading");
+  if(state==="loading"){
+    el.classList.add("loading");
+    el.innerHTML = `<span class="dot"></span> Syncing with Google Sheets...`;
+  } else if(state==="live"){
+    el.classList.add("live");
+    el.innerHTML = `<span class="dot"></span> Live from Google Sheets`;
+  } else {
+    el.classList.add("cached");
+    el.innerHTML = `<span class="dot"></span> Cached data (offline)`;
+  }
+}
+
+async function loadData(){
+  const btn = document.getElementById("btnRefresh");
+  btn.disabled = true;
+  setLiveBadge("loading");
+  try{
+    const url = CSV_BASE_URL + "&_ts=" + Date.now();
+    const res = await fetch(url, {cache:"no-store"});
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    const text = await res.text();
+    if(typeof Papa === "undefined") throw new Error("CSV parser unavailable");
+    const parsed = Papa.parse(text, {header:true, skipEmptyLines:true});
+    const rows = parsed.data.map(normalizeRow).filter(Boolean);
+    if(!rows.length) throw new Error("No data rows found in sheet");
+    RAW_DATA = rows;
+    setLiveBadge("live");
+  }catch(err){
+    console.warn("Live data fetch failed, falling back:", err);
+    if(!RAW_DATA.length) RAW_DATA = FALLBACK_DATA;
+    setLiveBadge("cached");
+  }
+  populateFilterOptions();
+  render();
+  document.getElementById("metaUpdated").textContent = new Date().toLocaleString("en-US");
+  btn.disabled = false;
+}
+
+// ===================== FILTERS =====================
+function rebuildSelect(selectEl, values, allLabel, formatFn){
+  const prev = selectEl.value;
+  selectEl.innerHTML = "";
+  const allOpt = document.createElement("option");
+  allOpt.value = ""; allOpt.textContent = allLabel;
+  selectEl.appendChild(allOpt);
+  values.forEach(v=>{
+    const o = document.createElement("option");
+    o.value = v; o.textContent = formatFn ? formatFn(v) : v;
+    selectEl.appendChild(o);
+  });
+  if(values.includes(prev) || prev===""){ selectEl.value = prev; }
+  else { selectEl.value = ""; }
+  return prev;
+}
+
+function populateFilterOptions(){
+  const facilities = unique(RAW_DATA,"facility");
+  const emps = unique(RAW_DATA,"emp");
+  const statuses = unique(RAW_DATA,"status");
+  const dates = [...new Set(RAW_DATA.map(r=>r.date))].filter(Boolean).sort().reverse();
+
+  rebuildSelect(document.getElementById("fFacility"), facilities, "All");
+  rebuildSelect(document.getElementById("fEmp"), emps, "All");
+  rebuildSelect(document.getElementById("fStatus"), statuses, "All");
+
+  const fDate = document.getElementById("fDate");
+  const prevDateVal = fDate.value;
+  rebuildSelect(fDate, dates, "All Dates", enDate);
+  if(!datesInitialized){
+    if(dates.length) fDate.value = dates[0];
+    datesInitialized = true;
+  } else if(prevDateVal && !dates.includes(prevDateVal)){
+    fDate.value = "";
+  }
+}
+
+function initFilterEvents(){
+  ["fFacility","fEmp","fStatus","fDate"].forEach(id=>{
+    document.getElementById(id).addEventListener("change", render);
+  });
+  document.getElementById("fSearch").addEventListener("input", render);
+  document.getElementById("tableSearch").addEventListener("input", renderTableOnly);
+  document.getElementById("btnReset").addEventListener("click", ()=>{
+    document.getElementById("fFacility").value = "";
+    document.getElementById("fEmp").value = "";
+    document.getElementById("fStatus").value = "";
+    document.getElementById("fDate").value = "";
+    document.getElementById("fSearch").value = "";
+    document.getElementById("tableSearch").value = "";
+    render();
+  });
+  document.getElementById("btnRefresh").addEventListener("click", loadData);
+  document.querySelectorAll("thead th[data-key]").forEach(th=>{
+    th.addEventListener("click", ()=>{
+      const key = th.dataset.key;
+      if(sortState.key===key) sortState.dir *= -1;
+      else { sortState.key=key; sortState.dir=1; }
+      renderTableOnly();
+    });
+  });
+}
+
+function getFiltered(){
+  const date = document.getElementById("fDate").value;
+  const facility = document.getElementById("fFacility").value;
+  const emp = document.getElementById("fEmp").value;
+  const status = document.getElementById("fStatus").value;
+  const search = document.getElementById("fSearch").value.trim().toLowerCase();
+  return RAW_DATA.filter(r=>{
+    if(date && r.date!==date) return false;
+    if(facility && r.facility!==facility) return false;
+    if(emp && r.emp!==emp) return false;
+    if(status && r.status!==status) return false;
+    if(search){
+      const hay = (r.vendor+" "+r.asn+" "+r.ro).toLowerCase();
+      if(!hay.includes(search)) return false;
+    }
+    return true;
+  });
+}
+
+// ===================== KPIs =====================
+function renderKPIs(data){
+  const totalQty = data.reduce((s,r)=>s+r.qty,0);
+  const vendors = new Set(data.map(r=>r.vendor)).size;
+  const avg = data.length ? Math.round(totalQty/data.length) : 0;
+
+  document.getElementById("kpiShipments").textContent = fmt(data.length);
+  document.getElementById("kpiQty").textContent = fmt(totalQty);
+  document.getElementById("kpiVendors").textContent = fmt(vendors);
+  document.getElementById("kpiAvg").textContent = fmt(avg);
+
+  document.getElementById("metaCount").textContent = fmt(data.length);
+  const uniqueDates = [...new Set(data.map(r=>r.date))].filter(Boolean).sort();
+  const metaDateEl = document.getElementById("metaDate");
+  if(uniqueDates.length===0) metaDateEl.textContent = "-";
+  else if(uniqueDates.length===1) metaDateEl.textContent = enDate(uniqueDates[0]);
+  else metaDateEl.textContent = `${uniqueDates.length} dates (${enDate(uniqueDates[0])} → ${enDate(uniqueDates[uniqueDates.length-1])})`;
+}
+
+// ===================== CHARTS =====================
+function destroyCharts(){
+  Object.values(charts).forEach(c=>c && c.destroy());
+  charts = {};
+}
+
+Chart.defaults.color = "#6b6f76";
+Chart.defaults.font.family = "Inter";
+Chart.defaults.borderColor = "#e7e8ec";
+
+function renderCharts(data){
+  destroyCharts();
+
+  // ---- Facility aggregates ----
+  const byFacilityQty = {};
+  const byFacilityCount = {};
+  data.forEach(r=>{
+    byFacilityQty[r.facility] = (byFacilityQty[r.facility]||0)+r.qty;
+    byFacilityCount[r.facility] = (byFacilityCount[r.facility]||0)+1;
+  });
+  const facLabels = Object.keys(byFacilityQty).sort();
+
+  charts.facilityQty = new Chart(document.getElementById("chartFacilityQty"), {
+    type:"bar",
+    data:{
+      labels: facLabels,
+      datasets:[{
+        label:"Quantity Received",
+        data: facLabels.map(f=>byFacilityQty[f]),
+        backgroundColor: facLabels.map((_,i)=>COLORS[i%COLORS.length]),
+        borderRadius:8,
+        maxBarThickness:48,
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false},
+        tooltip:{ callbacks:{ label:(c)=>fmt(c.parsed.y)+" units" } } },
+      scales:{
+        y:{ grid:{color:"#eceef1"}, ticks:{callback:v=>fmt(v)} },
+        x:{ grid:{display:false} }
+      }
+    }
+  });
+
+  charts.facilityShare = new Chart(document.getElementById("chartFacilityShare"), {
+    type:"doughnut",
+    data:{
+      labels: facLabels,
+      datasets:[{
+        data: facLabels.map(f=>byFacilityCount[f]),
+        backgroundColor: facLabels.map((_,i)=>COLORS[i%COLORS.length]),
+        borderColor:"#ffffff",
+        borderWidth:3,
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      cutout:"62%",
+      plugins:{
+        legend:{ position:"bottom", labels:{boxWidth:10, padding:14, font:{size:11}} },
+        tooltip:{ callbacks:{ label:(c)=>`${c.label}: ${c.parsed} shipments` } }
+      }
+    }
+  });
+
+  // ---- Top vendors by quantity ----
+  const byVendorQty = {};
+  const byVendorSku = {};
+  data.forEach(r=>{
+    byVendorQty[r.vendor] = (byVendorQty[r.vendor]||0)+r.qty;
+    byVendorSku[r.vendor] = (byVendorSku[r.vendor]||0)+(r.product||0);
+  });
+  const topVendorsQty = Object.entries(byVendorQty).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const topVendorsSku = Object.entries(byVendorSku).sort((a,b)=>b[1]-a[1]).slice(0,10);
+
+  charts.topVendors = new Chart(document.getElementById("chartTopVendors"), {
+    type:"bar",
+    data:{
+      labels: topVendorsQty.map(v=>v[0].length>28 ? v[0].slice(0,28)+"…" : v[0]),
+      datasets:[{
+        label:"Quantity",
+        data: topVendorsQty.map(v=>v[1]),
+        backgroundColor:"#db3332",
+        borderRadius:6,
+        maxBarThickness:22,
+      }]
+    },
+    options:{
+      indexAxis:"y",
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false},
+        tooltip:{ callbacks:{ label:(c)=>fmt(c.parsed.x)+" units" } } },
+      scales:{
+        x:{ grid:{color:"#eceef1"}, ticks:{callback:v=>fmt(v)} },
+        y:{ grid:{display:false}, ticks:{font:{size:11}} }
+      }
+    }
+  });
+
+  charts.sku = new Chart(document.getElementById("chartSku"), {
+    type:"bar",
+    data:{
+      labels: topVendorsSku.map(v=>v[0].length>26 ? v[0].slice(0,26)+"…" : v[0]),
+      datasets:[{
+        label:"SKU Count",
+        data: topVendorsSku.map(v=>v[1]),
+        backgroundColor:"#141414",
+        borderRadius:6,
+        maxBarThickness:22,
+      }]
+    },
+    options:{
+      indexAxis:"y",
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false},
+        tooltip:{ callbacks:{ label:(c)=>fmt(c.parsed.x)+" SKU" } } },
+      scales:{
+        x:{ grid:{color:"#eceef1"}, ticks:{stepSize:1} },
+        y:{ grid:{display:false}, ticks:{font:{size:11}} }
+      }
+    }
+  });
+
+  // ---- Employee performance ----
+  const byEmpCount = {};
+  const byEmpQty = {};
+  data.forEach(r=>{
+    byEmpCount[r.emp] = (byEmpCount[r.emp]||0)+1;
+    byEmpQty[r.emp] = (byEmpQty[r.emp]||0)+r.qty;
+  });
+  const empLabels = Object.keys(byEmpCount).sort((a,b)=>byEmpCount[b]-byEmpCount[a]);
+
+  charts.emp = new Chart(document.getElementById("chartEmp"), {
+    type:"bar",
+    data:{
+      labels: empLabels,
+      datasets:[
+        {
+          label:"Shipments",
+          data: empLabels.map(e=>byEmpCount[e]),
+          backgroundColor:"#f5e023",
+          borderRadius:6,
+          yAxisID:"y",
+          maxBarThickness:26,
+        },
+        {
+          label:"Quantity Received",
+          data: empLabels.map(e=>byEmpQty[e]),
+          backgroundColor:"#db3332",
+          borderRadius:6,
+          yAxisID:"y1",
+          maxBarThickness:26,
+        }
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{position:"bottom", labels:{boxWidth:10, font:{size:11}}},
+        tooltip:{ callbacks:{ label:(c)=> c.dataset.yAxisID==="y1"
+            ? `Quantity Received: ${fmt(c.parsed.y)} units`
+            : `Shipments: ${fmt(c.parsed.y)}` } }
+      },
+      scales:{
+        y:{ position:"left", grid:{color:"#eceef1"}, ticks:{stepSize:1}, title:{display:true,text:"Shipments",font:{size:10}} },
+        y1:{ position:"right", grid:{display:false}, ticks:{callback:v=>fmt(v)}, title:{display:true,text:"Quantity Received",font:{size:10}} },
+        x:{ grid:{display:false}, ticks:{font:{size:10}} }
+      }
+    }
+  });
+
+  // ---- Hourly distribution ----
+  const hourCounts = new Array(24).fill(0);
+  data.forEach(r=>{
+    const mins = timeToMinutes(r.arrival);
+    if(mins!==null) hourCounts[Math.floor(mins/60)]++;
+  });
+  const activeHours = [];
+  for(let h=6; h<20; h++) activeHours.push(h);
+
+  charts.hourly = new Chart(document.getElementById("chartHourly"), {
+    type:"line",
+    data:{
+      labels: activeHours.map(hourLabel),
+      datasets:[{
+        label:"Shipments Received",
+        data: activeHours.map(h=>hourCounts[h]),
+        borderColor:"#db3332",
+        backgroundColor:"rgba(219,51,50,.10)",
+        fill:true,
+        tension:.35,
+        pointRadius:3,
+        pointBackgroundColor:"#db3332",
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false} },
+      scales:{
+        y:{ grid:{color:"#eceef1"}, ticks:{stepSize:1} },
+        x:{ grid:{display:false}, ticks:{font:{size:10}} }
+      }
+    }
+  });
+}
+
+// ===================== CAPACITY PANEL =====================
+function renderCapacity(data){
+  const byFacilityQty = {};
+  data.forEach(r=>{ byFacilityQty[r.facility] = (byFacilityQty[r.facility]||0)+r.qty; });
+
+  const numDays = Math.max(1, new Set(data.map(r=>r.date)).size);
+
+  let totalActual = 0, totalCapacity = 0;
+  const rowsHtml = CAPACITY_ORDER.map(fac=>{
+    const capacity = (CAPACITY_DATA[fac] || 0) * numDays;
+    const actual = byFacilityQty[fac] || 0;
+    totalActual += actual; totalCapacity += capacity;
+    const pct = capacity ? Math.round(actual/capacity*100) : 0;
+    const cls = pct>=100 ? "over" : pct>=80 ? "warn" : "ok";
+    const width = Math.min(pct,100);
+    return `
+      <div class="cap-row">
+        <div class="cap-row-head">
+          <span class="fac">${fac}</span>
+          <span class="nums">${fmt(actual)} / ${fmt(capacity)} units &nbsp; <b style="color:${pct>=100?'#db3332':pct>=80?'#c9b600':'#1fb08f'}">${pct}%</b></span>
+        </div>
+        <div class="cap-track">
+          <div class="cap-fill ${cls}" style="width:${width}%"></div>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  const totalPct = totalCapacity ? Math.round(totalActual/totalCapacity*100) : 0;
+  const totalCls = totalPct>=100 ? "over" : totalPct>=80 ? "warn" : "ok";
+  const totalWidth = Math.min(totalPct,100);
+
+  document.getElementById("capacityBars").innerHTML = `
+    <div class="cap-row cap-total">
+      <div class="cap-row-head">
+        <span class="fac">🏆 Grand Total (All Facilities)</span>
+        <span class="nums">${fmt(totalActual)} / ${fmt(totalCapacity)} units &nbsp; <b style="color:${totalPct>=100?'#db3332':totalPct>=80?'#c9b600':'#1fb08f'}">${totalPct}%</b></span>
+      </div>
+      <div class="cap-track">
+        <div class="cap-fill ${totalCls}" style="width:${totalWidth}%"></div>
+      </div>
+      ${numDays>1 ? `<div class="cap-note">Capacity target scaled for ${numDays} selected days</div>` : ``}
+    </div>
+    <hr class="cap-divider" />
+    ${rowsHtml}
+    <div class="legend-row" style="margin-top:16px;">
+      <span><i style="background:#1fb08f"></i> Below 80% — capacity available</span>
+      <span><i style="background:#f5e023"></i> 80% to 99% — near maximum</span>
+      <span><i style="background:#db3332"></i> 100% or more — over capacity</span>
+    </div>
+  `;
+}
+
+// ===================== TABLE =====================
+function renderTable(data){
+  const q = document.getElementById("tableSearch").value.trim().toLowerCase();
+  let rows = data.filter(r=>{
+    if(!q) return true;
+    const hay = (r.vendor+" "+r.asn+" "+r.ro+" "+r.emp+" "+r.facility).toLowerCase();
+    return hay.includes(q);
+  });
+
+  rows = [...rows].sort((a,b)=>{
+    let va = a[sortState.key], vb = b[sortState.key];
+    if(sortState.key==="arrival"){ va = timeToMinutes(va) ?? -1; vb = timeToMinutes(vb) ?? -1; }
+    if(typeof va === "string" && typeof vb === "string"){
+      return va.localeCompare(vb) * sortState.dir;
+    }
+    va = va ?? 0; vb = vb ?? 0;
+    return (va - vb) * sortState.dir;
+  });
+
+  const tbody = document.getElementById("tableBody");
+  if(!rows.length){
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="11">No matching results</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map(r=>`
+    <tr>
+      <td>${enDate(r.date)}</td>
+      <td>${r.vendor}</td>
+      <td class="mono">${r.ro}</td>
+      <td class="mono">${r.asn}</td>
+      <td><span class="facility-tag">${r.facility}</span></td>
+      <td class="qty">${fmt(r.qty)}</td>
+      <td><span class="pill received">${r.status}</span></td>
+      <td>${r.arrival ?? "—"}</td>
+      <td>${r.emp}</td>
+      <td>${r.cars}</td>
+      <td>${r.product ?? "—"}</td>
+    </tr>
+  `).join("");
+
+  document.querySelectorAll("thead th[data-key]").forEach(th=>{
+    th.querySelector(".arrow")?.remove();
+    if(th.dataset.key===sortState.key){
+      const span = document.createElement("span");
+      span.className = "arrow";
+      span.textContent = sortState.dir===1 ? "▲" : "▼";
+      th.appendChild(span);
+    }
+  });
+}
+
+function renderTableOnly(){ renderTable(getFiltered()); }
+
+// ===================== MASTER RENDER =====================
+function render(){
+  const data = getFiltered();
+  renderKPIs(data);
+  renderCapacity(data);
+  renderCharts(data);
+  renderTable(data);
+}
+
+// ===================== BOOTSTRAP =====================
+initFilterEvents();
+loadData();
+setInterval(loadData, AUTO_REFRESH_MS);
+window.addEventListener("focus", loadData);
+</script>
+</body>
+</html>
