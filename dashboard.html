@@ -2,7 +2,7 @@
 <html lang="en" dir="ltr">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>Inbound Receiving Dashboard | noon minutes</title>
 <link rel="icon" href="assets/noon-minutes-logo.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -57,13 +57,14 @@
     color-scheme:dark;
   }
   *{box-sizing:border-box;}
-  html,body{margin:0;padding:0;}
+  html,body{margin:0;padding:0;max-width:100%;overflow-x:hidden;}
   body{
     background:var(--bg);
     color:var(--text);
     font-family:'Inter', 'Segoe UI', Tahoma, sans-serif;
     min-height:100vh;
     transition:background .2s ease, color .2s ease;
+    -webkit-text-size-adjust:100%;
   }
   html[dir="rtl"] body{font-family:'Cairo', 'Segoe UI', Tahoma, sans-serif;}
   html[dir="rtl"] thead th, html[dir="rtl"] tbody td{text-align:right;}
@@ -117,7 +118,8 @@
     background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
     padding:14px 16px;    box-shadow:var(--shadow);
   }
-  .filters .field{display:flex;flex-direction:column;gap:6px;min-width:170px;flex:1;}
+  .filters .field{display:flex;flex-direction:column;gap:6px;min-width:min(170px,100%);flex:1;}
+  .filters .field.grow{flex:2;min-width:min(220px,100%);}
   .filters label{font-size:12px;color:var(--muted);font-weight:600;}
   .filters select, .filters input{
     background:var(--panel-2);border:1px solid var(--border);color:var(--text);
@@ -251,12 +253,50 @@
   .forecast-box b{color:var(--black);}
 
   @media (max-width:900px){
-    .compare-grid{grid-template-columns:1fr;}
-    .brand h1{font-size:18px;}
+    .wrap{padding:14px 12px 36px;padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right));}
+    header.top{gap:12px;margin-bottom:14px;}
+    .brand{width:100%;gap:10px;}
+    .brand .logo-img{height:42px;}
+    .brand h1{font-size:17px;line-height:1.25;}
+    .brand p{font-size:12px;}
+    .top-meta{width:100%;gap:8px;}
+    .badge,.btn-theme,.btn-lang,.btn-ghost,.btn-refresh{
+      font-size:12px;padding:8px 12px;flex:1 1 calc(50% - 8px);justify-content:center;text-align:center;
+    }
+    .btn-refresh{flex:1 1 100%;}
+    .filters{padding:12px;gap:10px;margin-bottom:14px;}
+    .filters .field,.filters .field.grow{min-width:100%;flex:1 1 100%;}
+    .filters select,.filters input,.search{
+      width:100%;min-width:0;font-size:16px;
+    }
+    .filters .reset{width:100%;align-self:stretch;}
+    .kpis{grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+    .kpi{padding:12px;}
+    .kpi .value{font-size:20px;}
+    .kpi .label{font-size:11px;}
+    .compare-grid{grid-template-columns:1fr;gap:10px;}
+    .cmp .val{font-size:20px;}
+    .panel{padding:14px;}
+    .panel h3{font-size:14px;}
+    .chart-box{height:230px;}
+    .chart-box.tall{height:260px;}
     .search{min-width:0;width:100%;}
+    .table-head{flex-direction:column;align-items:stretch;}
+    .table-scroll{-webkit-overflow-scrolling:touch;}
+    table{min-width:760px;font-size:12px;}
+    .rank-table{min-width:520px;}
+    .cap-row-head{flex-wrap:wrap;gap:4px;}
+    .cap-row-head .nums{white-space:normal;}
     .mobile-hint{display:block;}
-    .filters .field{min-width:140px;}
-    .kpi .value{font-size:22px;}
+    .legend-row{gap:8px;}
+    footer{font-size:11px;padding:0 4px;}
+  }
+  @media (max-width:480px){
+    .kpis{grid-template-columns:1fr 1fr;}
+    .badge{flex:1 1 100%;}
+    .brand h1{font-size:16px;}
+    .chart-box{height:210px;}
+    .chart-box.tall{height:240px;}
   }
   @media print{
     body{background:#fff;color:#111;}
@@ -316,7 +356,7 @@
       <label data-i18n="status">Status</label>
       <select id="fStatus"><option value="">All</option></select>
     </div>
-    <div class="field" style="flex:2;min-width:240px;">
+    <div class="field grow">
       <label data-i18n="searchLabel">Search vendor / ASN / RO</label>
       <input id="fSearch" type="text" data-i18n-placeholder="searchPh" placeholder="Vendor name or ASN number..." />
     </div>
