@@ -273,7 +273,8 @@
     background:transparent;border:0;color:#fff;font-size:20px;cursor:pointer;line-height:1;
   }
   .chat-log{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:8px;}
-  .chat-msg{max-width:88%;padding:9px 11px;border-radius:12px;font-size:13px;line-height:1.45;white-space:pre-wrap;}
+  .chat-msg{max-width:88%;padding:9px 11px;border-radius:12px;font-size:13px;line-height:1.5;white-space:pre-wrap;word-spacing:normal;letter-spacing:normal;}
+  .chat-head b,.chat-head span{letter-spacing:normal;word-spacing:normal;}
   .chat-msg.user{align-self:flex-end;background:var(--yellow);color:var(--ink);}
   .chat-msg.bot{align-self:flex-start;background:var(--panel-2);border:1px solid var(--border);color:var(--text);}
   .chat-msg.err{align-self:flex-start;background:rgba(219,51,50,.1);color:var(--red);border:1px solid rgba(219,51,50,.3);}
@@ -514,7 +515,7 @@ const CAPACITY_CSV_URLS = [
 ];
 const AUTO_REFRESH_MS = 120000; // 2 minutes
 const GEMINI_API_KEY = "AQ.Ab8RN6IZI9rOpsQoJkFewRencE3DZT-ZbKce1gsJTsIaVIVf7g";
-const GEMINI_MODELS = ["gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-1.5-flash"];
+const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-1.5-flash"];
 function getChatApiKey(){ return GEMINI_API_KEY; }
 
 const I18N = {
@@ -1881,33 +1882,55 @@ function addChatMsg(role, text, cls){
 }
 
 async function askGemini(userText){
+  const key = getChatApiKey();
+  if(!key) throw new Error("missing-key");
   const contents = [];
   chatHistory.forEach(m=>{
     contents.push({role: m.role, parts:[{text:m.text}]});
   });
   contents.push({role:"user", parts:[{text:userText}]});
-  const body = {
-    systemInstruction:{ parts:[{ text: dashboardContext() }] },
-    contents
-  };
+  const payloads = [
+    { systemInstruction:{ parts:[{ text: dashboardContext() }] }, contents },
+    { contents: [{role:"user", parts:[{text: dashboardContext()+"\n\nUser: "+userText}]}] }
+  ];
   let lastErr = "fail";
   for(const model of GEMINI_MODELS){
-    try{
-      const key = getChatApiKey();
-      if(!key) throw new Error("missing-key");
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`, {
-        method:"POST",
-        headers:{ "Content-Type":"application/json" },
-        body: JSON.stringify(body)
-      });
-      const json = await res.json();
-      if(!res.ok) throw new Error(json.error?.message || ("HTTP "+res.status));
-      const text = json.candidates?.[0]?.content?.parts?.map(p=>p.text).join("") || "";
-      if(text) return text;
-      lastErr = "empty";
-    }catch(e){
-      lastErr = e.message || String(e);
+    for(const body of payloads){
+      try{
+        const res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/"+model+":generateContent", {
+          method:"POST",
+          headers:{ "Content-Type":"application/json", "x-goog-api-key": key },
+          body: JSON.stringify(body)
+        });
+        const json = await res.json().catch(()=>({}));
+        if(!res.ok) throw new Error(json.error?.message || ("HTTP "+res.status));
+        const text = (json.candidates?.[0]?.content?.parts||[]).map(p=>p.text).filter(Boolean).join("\n");
+        if(text) return text;
+        lastErr = "empty response";
+      }catch(e){
+        lastErr = e.message || String(e);
+      }
     }
+  }
+  try{
+    const res = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+      method:"POST",
+      headers:{ "Content-Type":"application/json", "Authorization":"Bearer "+key },
+      body: JSON.stringify({
+        model:"gemini-2.5-flash",
+        messages:[
+          {role:"system", content: dashboardContext()},
+          ...chatHistory.map(m=>({role:m.role==="model"?"assistant":"user", content:m.text})),
+          {role:"user", content:userText}
+        ]
+      })
+    });
+    const json = await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(json.error?.message || json.error || ("HTTP "+res.status));
+    const text = json.choices?.[0]?.message?.content || "";
+    if(text) return text;
+  }catch(e){
+    lastErr = e.message || String(e);
   }
   throw new Error(lastErr);
 }
@@ -1922,17 +1945,7 @@ function initChat(){
   chatReady = true;
   addChatMsg("bot", t("chatHello"));
   const keyForm = document.getElementById("chatKeyForm");
-  const keyInput = document.getElementById("chatKeyInput");
-  if(getChatApiKey()) keyForm.style.display = "none";
-  keyForm.addEventListener("submit", (e)=>{
-    e.preventDefault();
-    const key = keyInput.value.trim();
-    if(!key) return;
-    try{ localStorage.setItem(CHAT_KEY_STORE, key); }catch(err){}
-    keyInput.value = "";
-    keyForm.style.display = "none";
-    addChatMsg("bot", t("chatHello"));
-  });
+  if(keyForm) keyForm.style.display = "none";
   fab.addEventListener("click", ()=>{
     panel.classList.toggle("open");
     if(panel.classList.contains("open")) input.focus();
@@ -1960,7 +1973,7 @@ function initChat(){
       if(chatHistory.length>16) chatHistory = chatHistory.slice(-16);
     }catch(err){
       pending.className = "chat-msg err";
-      pending.textContent = t("chatFail");
+      pending.textContent = t("chatFail") + (err && err.message ? "\n" + err.message : "");
       chatHistory.pop();
     }
     send.disabled = false;
