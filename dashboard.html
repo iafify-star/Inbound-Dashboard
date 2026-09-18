@@ -3,10 +3,24 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Daily Receiving Dashboard | noon minutes</title>
+<title>Inbound Receiving Dashboard | noon minutes</title>
 <link rel="icon" href="assets/noon-minutes-logo.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script>
+(function(){
+  try{
+    const saved = localStorage.getItem("inbound-theme");
+    const theme = saved || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    document.documentElement.setAttribute("data-theme", theme);
+    const lang = localStorage.getItem("inbound-lang") || "en";
+    document.documentElement.lang = lang;
+    document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+  }catch(e){
+    document.documentElement.setAttribute("data-theme", "light");
+  }
+})();
+</script>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <style>
@@ -23,7 +37,24 @@
     --red-dark:#b92625;
     --green:#1fb08f;
     --black:#141414;
+    --ink:#141414;
+    --chart-grid:#eceef1;
+    --shadow:0 1px 3px rgba(0,0,0,.03);
     --radius:16px;
+    color-scheme:light;
+  }
+  html[data-theme="dark"]{
+    --bg:#111214;
+    --panel:#1b1d21;
+    --panel-2:#24272d;
+    --border:#333741;
+    --text:#f3f4f6;
+    --muted:#9aa0aa;
+    --black:#f3f4f6;
+    --ink:#141414;
+    --chart-grid:#2d3138;
+    --shadow:0 1px 3px rgba(0,0,0,.35);
+    color-scheme:dark;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
@@ -32,7 +63,10 @@
     color:var(--text);
     font-family:'Inter', 'Segoe UI', Tahoma, sans-serif;
     min-height:100vh;
+    transition:background .2s ease, color .2s ease;
   }
+  html[dir="rtl"] body{font-family:'Cairo', 'Segoe UI', Tahoma, sans-serif;}
+  html[dir="rtl"] thead th, html[dir="rtl"] tbody td{text-align:right;}
   .wrap{max-width:1440px;margin:0 auto;padding:22px 24px 60px;}
 
   /* Header */
@@ -65,11 +99,23 @@
   }
   .btn-refresh:hover{background:var(--yellow-dark);}
   .btn-refresh:disabled{opacity:.6;cursor:default;}
+  .btn-theme{
+    background:var(--panel);border:1px solid var(--border);color:var(--text);font-weight:800;
+    border-radius:999px;padding:9px 16px;font-size:13px;cursor:pointer;font-family:inherit;
+    transition:.15s;display:inline-flex;align-items:center;gap:8px;
+  }
+  .btn-theme:hover{border-color:var(--yellow-dark);color:var(--text);}
+  .btn-lang{
+    background:var(--panel);border:1px solid var(--border);color:var(--text);font-weight:800;
+    border-radius:999px;padding:9px 16px;font-size:13px;cursor:pointer;font-family:inherit;
+    transition:.15s;
+  }
+  .btn-lang:hover{border-color:var(--yellow-dark);}
   /* Filters */
   .filters{
     display:flex;flex-wrap:wrap;gap:12px;margin-bottom:22px;
     background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
-    padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.03);
+    padding:14px 16px;    box-shadow:var(--shadow);
   }
   .filters .field{display:flex;flex-direction:column;gap:6px;min-width:170px;flex:1;}
   .filters label{font-size:12px;color:var(--muted);font-weight:600;}
@@ -93,7 +139,7 @@
     background:var(--panel);
     border:1px solid var(--border);border-radius:var(--radius);
     padding:16px 16px 14px;position:relative;overflow:hidden;
-    box-shadow:0 1px 3px rgba(0,0,0,.03);
+    box-shadow:var(--shadow);
   }
   .kpi .icon{
     width:36px;height:36px;border-radius:10px;font-size:17px;margin-bottom:10px;
@@ -101,7 +147,7 @@
   }
   .kpi.c1 .icon{background:var(--yellow);}
   .kpi.c2 .icon{background:var(--red);color:#fff;}
-  .kpi.c3 .icon{background:var(--black);color:var(--yellow);}
+  .kpi.c3 .icon{background:var(--ink);color:var(--yellow);}
   .kpi.c5 .icon{background:var(--yellow-dark);color:#fff;}
   .kpi .label{font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:600;}
   .kpi .value{font-size:26px;font-weight:900;color:var(--black);}
@@ -113,7 +159,7 @@
   @media (max-width:980px){.grid,.grid2{grid-template-columns:1fr;}}
   .panel{
     background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
-    padding:18px;box-shadow:0 1px 3px rgba(0,0,0,.03);
+    padding:18px;box-shadow:var(--shadow);
   }
   .panel h3{margin:0 0 4px;font-size:15px;font-weight:800;color:var(--black);}
   .panel .desc{color:var(--muted);font-size:12px;margin:0 0 14px;}
@@ -170,6 +216,91 @@
   .cap-total .cap-track{height:20px;}
   .cap-divider{border:none;border-top:1px solid var(--border);margin:18px 0 16px;opacity:.8;}
   .cap-note{font-size:11px;color:var(--muted);margin-top:4px;}
+
+  .alert-stack{display:flex;flex-direction:column;gap:8px;margin-bottom:16px;}
+  .alert{
+    border-radius:12px;padding:12px 14px;font-size:13px;font-weight:600;
+    border:1px solid var(--border);background:var(--panel);
+  }
+  .alert.warn{border-color:rgba(216,196,0,.55);background:rgba(245,224,35,.12);}
+  .alert.over{border-color:rgba(219,51,50,.45);background:rgba(219,51,50,.10);color:var(--red);}
+  .alert.info{border-color:rgba(31,176,143,.4);background:rgba(31,176,143,.08);}
+  .alert.error{border-color:rgba(219,51,50,.55);background:rgba(219,51,50,.12);color:var(--red);}
+  .alert[hidden]{display:none;}
+
+  .compare-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;}
+  .cmp{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow);}
+  .cmp .lbl{font-size:12px;color:var(--muted);font-weight:700;margin-bottom:6px;}
+  .cmp .val{font-size:22px;font-weight:900;}
+  .cmp .delta{font-size:12px;margin-top:6px;font-weight:700;}
+  .delta.up{color:var(--green);}
+  .delta.down{color:var(--red);}
+  .delta.flat{color:var(--muted);}
+
+  .issue-list{display:flex;flex-direction:column;gap:8px;}
+  .issue{display:flex;justify-content:space-between;gap:10px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:var(--panel-2);font-size:13px;}
+  .rank-table{min-width:640px;}
+  .mobile-hint{display:none;font-size:12px;color:var(--muted);margin:0 0 8px;}
+  .action-btns{display:flex;flex-wrap:wrap;gap:8px;}
+  .btn-ghost{
+    background:var(--panel);border:1px solid var(--border);color:var(--text);font-weight:800;
+    border-radius:999px;padding:9px 14px;font-size:13px;cursor:pointer;font-family:inherit;
+  }
+  .btn-ghost:hover{border-color:var(--yellow-dark);}
+  .forecast-box{margin-top:14px;padding:12px;border:1px dashed var(--border);border-radius:12px;background:var(--panel-2);}
+  .forecast-box b{color:var(--black);}
+
+  .chat-fab{
+    position:fixed;inset-inline-end:22px;bottom:22px;z-index:40;
+    width:58px;height:58px;border:none;border-radius:50%;cursor:pointer;
+    background:var(--yellow);color:var(--ink);font-size:24px;font-weight:900;
+    box-shadow:0 8px 24px rgba(0,0,0,.22);
+  }
+  .chat-panel{
+    position:fixed;inset-inline-end:22px;bottom:90px;z-index:40;
+    width:min(380px,calc(100vw - 24px));height:min(520px,calc(100vh - 130px));
+    background:var(--panel);border:1px solid var(--border);border-radius:18px;
+    box-shadow:0 16px 40px rgba(0,0,0,.22);display:none;flex-direction:column;overflow:hidden;
+  }
+  .chat-panel.open{display:flex;}
+  .chat-head{
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+    padding:12px 14px;background:var(--ink);color:#fff;
+  }
+  .chat-head b{font-size:14px;}
+  .chat-head span{display:block;font-size:11px;opacity:.75;font-weight:500;}
+  .chat-close{
+    background:transparent;border:0;color:#fff;font-size:20px;cursor:pointer;line-height:1;
+  }
+  .chat-log{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:8px;}
+  .chat-msg{max-width:88%;padding:9px 11px;border-radius:12px;font-size:13px;line-height:1.45;white-space:pre-wrap;}
+  .chat-msg.user{align-self:flex-end;background:var(--yellow);color:var(--ink);}
+  .chat-msg.bot{align-self:flex-start;background:var(--panel-2);border:1px solid var(--border);color:var(--text);}
+  .chat-msg.err{align-self:flex-start;background:rgba(219,51,50,.1);color:var(--red);border:1px solid rgba(219,51,50,.3);}
+  .chat-form{display:flex;gap:8px;padding:10px;border-top:1px solid var(--border);}
+  .chat-form textarea{
+    flex:1;resize:none;min-height:40px;max-height:90px;border:1px solid var(--border);
+    border-radius:10px;padding:8px 10px;font:inherit;background:var(--panel-2);color:var(--text);
+  }
+  .chat-form button{
+    background:var(--yellow);border:0;border-radius:10px;padding:0 14px;font-weight:800;cursor:pointer;color:var(--ink);
+  }
+  .chat-form button:disabled{opacity:.5;cursor:default;}
+
+  @media (max-width:900px){
+    .compare-grid{grid-template-columns:1fr;}
+    .brand h1{font-size:18px;}
+    .search{min-width:0;width:100%;}
+    .mobile-hint{display:block;}
+    .filters .field{min-width:140px;}
+    .kpi .value{font-size:22px;}
+  }
+  @media print{
+    body{background:#fff;color:#111;}
+    .filters,.top-meta button,.search,.btn-ghost,.btn-theme,.btn-lang,.btn-refresh,.mobile-hint,.chat-fab,.chat-panel{display:none !important;}
+    .panel,.kpi,.cmp{break-inside:avoid;box-shadow:none;}
+    .chart-box,.chart-box.tall{height:220px;}
+  }
 </style>
 </head>
 <body>
@@ -179,91 +310,140 @@
     <div class="brand">
       <img class="logo-img" src="assets/noon-minutes-logo.png" alt="noon minutes" />
       <div>
-        <h1>Daily Receiving Dashboard</h1>
-        <p>Warehouse Receiving Operations &mdash; noon minutes</p>
+        <h1 data-i18n="brandTitle">Inbound Receiving Dashboard</h1>
+        <p data-i18n="brandSub">Inbound team — warehouse receiving operations</p>
       </div>
     </div>
     <div class="top-meta">
-      <div class="badge live" id="liveBadge"><span class="dot"></span> Live from Google Sheets</div>
+      <div class="badge live" id="liveBadge"><span class="dot"></span> <span data-i18n="live">Live from receiving sheet</span></div>
       <div class="badge">📅 <b id="metaDate">-</b></div>
-      <div class="badge">📊 Shipments: <b id="metaCount">-</b></div>
-      <div class="badge">🕒 Updated: <b id="metaUpdated">-</b></div>
-      <button class="btn-refresh" id="btnRefresh">🔄 Refresh</button>
+      <div class="badge">📊 <span data-i18n="receipts">Receipts:</span> <b id="metaCount">-</b></div>
+      <div class="badge">🕒 <span data-i18n="updated">Updated:</span> <b id="metaUpdated">-</b></div>
+      <button class="btn-lang" id="btnLang" type="button" aria-label="Switch language">العربية</button>
+      <button class="btn-theme" id="btnTheme" type="button" aria-label="Toggle color theme">🌙 Dark</button>
+      <button class="btn-ghost" id="btnCopyLink" data-i18n="copyLink">Copy link</button>
+      <button class="btn-ghost" id="btnSavePref" data-i18n="savePref">Save as default</button>
+      <button class="btn-ghost" id="btnExport" data-i18n="exportExcel">Export Excel</button>
+      <button class="btn-ghost" id="btnPrint" data-i18n="printReport">Print / PDF</button>
+      <button class="btn-refresh" id="btnRefresh" data-i18n="refresh">🔄 Refresh</button>
     </div>
   </header>
 
+  <div class="alert error" id="sheetError" hidden></div>
+  <div class="alert-stack" id="alertStack"></div>
+
   <div class="filters">
     <div class="field">
-      <label>Date</label>
-      <select id="fDate"><option value="">All Dates</option></select>
+      <label data-i18n="dateFrom">From date</label>
+      <select id="fDateFrom"><option value="">All dates</option></select>
     </div>
     <div class="field">
-      <label>Facility / Warehouse</label>
+      <label data-i18n="dateTo">To date</label>
+      <select id="fDateTo"><option value="">All dates</option></select>
+    </div>
+    <div class="field">
+      <label data-i18n="facility">Facility / Warehouse</label>
       <select id="fFacility"><option value="">All</option></select>
     </div>
     <div class="field">
-      <label>Employee</label>
+      <label data-i18n="employee">Employee</label>
       <select id="fEmp"><option value="">All</option></select>
     </div>
     <div class="field">
-      <label>Status</label>
+      <label data-i18n="status">Status</label>
       <select id="fStatus"><option value="">All</option></select>
     </div>
     <div class="field" style="flex:2;min-width:240px;">
-      <label>Search Vendor / ASN / RO</label>
-      <input id="fSearch" type="text" placeholder="Type vendor name or ASN number..." />
+      <label data-i18n="searchLabel">Search vendor / ASN / RO</label>
+      <input id="fSearch" type="text" data-i18n-placeholder="searchPh" placeholder="Vendor name or ASN number..." />
     </div>
-    <button class="reset" id="btnReset">↺ Reset Filters</button>
+    <button class="reset" id="btnReset" data-i18n="reset">↺ Reset filters</button>
   </div>
 
   <div class="kpis">
-    <div class="kpi c1"><span class="icon">🚚</span><div class="label">Total Shipments (ASNs)</div><div class="value" id="kpiShipments">0</div><div class="sub">Total Shipments</div></div>
-    <div class="kpi c2"><span class="icon">📦</span><div class="label">Total Quantity Received</div><div class="value" id="kpiQty">0</div><div class="sub">Total Units Received</div></div>
-    <div class="kpi c3"><span class="icon">🏭</span><div class="label">Vendors</div><div class="value" id="kpiVendors">0</div><div class="sub">Unique Vendors</div></div>
-    <div class="kpi c5"><span class="icon">📈</span><div class="label">Avg Quantity / Shipment</div><div class="value" id="kpiAvg">0</div><div class="sub">Avg Qty / Shipment</div></div>
+    <div class="kpi c1"><span class="icon">📥</span><div class="label" data-i18n="kpiReceipts">Total receipts (ASNs)</div><div class="value" id="kpiShipments">0</div><div class="sub" data-i18n="kpiReceiptsSub">Inbound ASNs received</div></div>
+    <div class="kpi c2"><span class="icon">📦</span><div class="label" data-i18n="kpiQty">Total quantity received</div><div class="value" id="kpiQty">0</div><div class="sub" data-i18n="kpiQtySub">Total units received</div></div>
+    <div class="kpi c3"><span class="icon">🏭</span><div class="label" data-i18n="kpiVendors">Vendors</div><div class="value" id="kpiVendors">0</div><div class="sub" data-i18n="kpiVendorsSub">Unique vendors</div></div>
+    <div class="kpi c5"><span class="icon">📈</span><div class="label" data-i18n="kpiAvg">Avg quantity / receipt</div><div class="value" id="kpiAvg">0</div><div class="sub" data-i18n="kpiAvgSub">Average units per ASN</div></div>
+  </div>
+
+  <div class="compare-grid" id="compareGrid"></div>
+
+  <div class="grid2">
+    <div class="panel">
+      <h3 data-i18n="accTitle">Supplier schedule accuracy</h3>
+      <p class="desc" data-i18n="accDesc">How inbound receipts matched the planned schedule</p>
+      <div class="chart-box"><canvas id="chartAccuracy"></canvas></div>
+    </div>
+    <div class="panel">
+      <h3 data-i18n="qualityTitle">Receiving data quality</h3>
+      <p class="desc" data-i18n="qualityDesc">ASNs with missing employee, zero quantity, or missing ASN</p>
+      <div class="issue-list" id="qualityList"></div>
+    </div>
   </div>
 
   <div class="panel" style="margin-bottom:16px;">
-    <h3>📊 Facility Capacity Utilization</h3>
-    <p class="desc">Quantity Received vs. Maximum Capacity per Facility</p>
+    <h3 data-i18n="rankTitle">Inbound team ranking</h3>
+    <p class="desc" data-i18n="rankDesc">Employees ranked by receipts, quantity, and SKUs</p>
+    <p class="mobile-hint" data-i18n="scrollHint">Swipe the table sideways on mobile</p>
+    <div class="table-scroll">
+      <table class="rank-table">
+        <thead>
+          <tr>
+            <th data-i18n="thRank">#</th>
+            <th data-i18n="thEmp">Employee</th>
+            <th data-i18n="axisReceipts">Receipts</th>
+            <th data-i18n="thQty">Quantity</th>
+            <th data-i18n="thSku">SKU</th>
+          </tr>
+        </thead>
+        <tbody id="rankBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-bottom:16px;">
+    <h3 data-i18n="capTitle">📊 Facility receiving capacity</h3>
+    <p class="desc" id="capDesc" data-i18n="capDescDefault">Daily receiving capacity vs. quantity received</p>
     <div id="capacityBars"></div>
+    <div class="forecast-box" id="forecastBox" hidden></div>
   </div>
 
   <div class="grid">
     <div class="panel">
-      <h3>Quantity Received by Facility</h3>
-      <p class="desc">Total units received, grouped by facility</p>
+      <h3 data-i18n="qtyByFac">Quantity received by facility</h3>
+      <p class="desc" data-i18n="qtyByFacDesc">Total units received, grouped by facility</p>
       <div class="chart-box"><canvas id="chartFacilityQty"></canvas></div>
     </div>
     <div class="panel">
-      <h3>Shipments Share by Facility</h3>
-      <p class="desc">Distribution of shipment count by facility</p>
+      <h3 data-i18n="shareByFac">Receipts share by facility</h3>
+      <p class="desc" data-i18n="shareByFacDesc">Distribution of inbound receipts by facility</p>
       <div class="chart-box"><canvas id="chartFacilityShare"></canvas></div>
     </div>
   </div>
 
   <div class="grid">
     <div class="panel">
-      <h3>Top 10 Vendors by Quantity</h3>
-      <p class="desc">Top 10 Vendors by Quantity Received</p>
+      <h3 data-i18n="topVendors">Top 10 vendors by quantity</h3>
+      <p class="desc" data-i18n="topVendorsDesc">Top 10 vendors by quantity received</p>
       <div class="chart-box tall"><canvas id="chartTopVendors"></canvas></div>
     </div>
     <div class="panel">
-      <h3>Employee Performance</h3>
-      <p class="desc">Shipments Handled per Employee</p>
+      <h3 data-i18n="empPerf">Inbound employee performance</h3>
+      <p class="desc" data-i18n="empPerfDesc">Receipts handled per inbound employee</p>
       <div class="chart-box tall"><canvas id="chartEmp"></canvas></div>
     </div>
   </div>
 
   <div class="grid2">
     <div class="panel">
-      <h3>Receiving Distribution Throughout the Day</h3>
-      <p class="desc">Shipments Received by Hour of Day</p>
+      <h3 data-i18n="hourly">Receiving throughout the day</h3>
+      <p class="desc" data-i18n="hourlyDesc">Inbound receipts by hour of day</p>
       <div class="chart-box"><canvas id="chartHourly"></canvas></div>
     </div>
     <div class="panel">
-      <h3>SKU Count per Vendor &mdash; Top 10</h3>
-      <p class="desc">Top 10 Vendors by SKU Count</p>
+      <h3 data-i18n="skuTitle">SKU count per vendor — Top 10</h3>
+      <p class="desc" data-i18n="skuDesc">Top 10 vendors by SKU count</p>
       <div class="chart-box"><canvas id="chartSku"></canvas></div>
     </div>
   </div>
@@ -271,26 +451,28 @@
   <div class="panel table-panel">
     <div class="table-head">
       <div>
-        <h3 style="margin-bottom:4px;">Detailed Receiving Log</h3>
-        <p class="desc" style="margin:0;">Click a column header to sort</p>
+        <h3 style="margin-bottom:4px;" data-i18n="tableTitle">Detailed receiving log</h3>
+        <p class="desc" style="margin:0;" data-i18n="tableDesc">Click a column header to sort</p>
       </div>
-      <input class="search" id="tableSearch" placeholder="🔍 Quick search in table..." />
+      <input class="search" id="tableSearch" data-i18n-placeholder="tableSearch" placeholder="🔍 Quick search in table..." />
     </div>
+    <p class="mobile-hint" data-i18n="scrollHint">Swipe the table sideways on mobile</p>
     <div class="table-scroll">
       <table>
         <thead>
           <tr>
-            <th data-key="date">Date</th>
-            <th data-key="vendor">Vendor</th>
-            <th data-key="ro">RO</th>
-            <th data-key="asn">ASN</th>
-            <th data-key="facility">Facility</th>
-            <th data-key="qty">Quantity</th>
-            <th data-key="status">Status</th>
-            <th data-key="arrival">Arrival Time</th>
-            <th data-key="emp">Employee</th>
-            <th data-key="cars">Cars</th>
-            <th data-key="product">SKU</th>
+            <th data-key="date" data-i18n="thDate">Date</th>
+            <th data-key="vendor" data-i18n="thVendor">Vendor</th>
+            <th data-key="ro" data-i18n="thRo">RO</th>
+            <th data-key="asn" data-i18n="thAsn">ASN</th>
+            <th data-key="facility" data-i18n="thFacility">Facility</th>
+            <th data-key="qty" data-i18n="thQty">Quantity</th>
+            <th data-key="status" data-i18n="thStatus">Status</th>
+            <th data-key="accuracy" data-i18n="thAccuracy">Schedule</th>
+            <th data-key="arrival" data-i18n="thArrival">Arrival time</th>
+            <th data-key="emp" data-i18n="thEmp">Employee</th>
+            <th data-key="cars" data-i18n="thCars">Cars</th>
+            <th data-key="product" data-i18n="thSku">SKU</th>
           </tr>
         </thead>
         <tbody id="tableBody"></tbody>
@@ -298,22 +480,328 @@
     </div>
   </div>
 
-  <footer>Interactive dashboard synced live from Google Sheets &mdash; Daily Receiving • noon minutes Warehouses</footer>
+  <footer data-i18n="footer">Live inbound receiving dashboard from Google Sheets — noon minutes inbound team</footer>
+</div>
+
+<button class="chat-fab" id="chatFab" type="button" aria-label="Open chat">💬</button>
+<div class="chat-panel" id="chatPanel">
+  <div class="chat-head">
+    <div>
+      <b data-i18n="chatTitle">Inbound assistant</b>
+      <span data-i18n="chatSub">Ask about receiving, capacity, or anything else</span>
+    </div>
+    <button class="chat-close" id="chatClose" type="button" aria-label="Close">×</button>
+  </div>
+  <div class="chat-log" id="chatLog"></div>
+  <form class="chat-form" id="chatKeyForm" style="display:none">
+    <textarea id="chatKeyInput" rows="1"></textarea>
+    <button type="submit">Save key</button>
+  </form>
+  <form class="chat-form" id="chatForm">
+    <textarea id="chatInput" data-i18n-placeholder="chatPh" placeholder="Ask anything..." rows="1"></textarea>
+    <button type="submit" id="chatSend" data-i18n="chatSend">Send</button>
+  </form>
 </div>
 
 <script>
 // ===================== CONFIG =====================
 const SHEET_ID = "1D1HKYe0wjCb0sroYOgdkYLfcrkdNSWKKIYDaD6D9_Ns";
 const CSV_BASE_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0`;
+const CAPACITY_GID = "514598343";
+const CAPACITY_CSV_URLS = [
+  `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Capacity`,
+  `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${CAPACITY_GID}`,
+];
 const AUTO_REFRESH_MS = 120000; // 2 minutes
+const GEMINI_API_KEY = "AQ.Ab8RN6IZI9rOpsQoJkFewRencE3DZT-ZbKce1gsJTsIaVIVf7g";
+const GEMINI_MODELS = ["gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-1.5-flash"];
+function getChatApiKey(){ return GEMINI_API_KEY; }
+
+const I18N = {
+  en:{
+    title:"Inbound Receiving Dashboard | noon minutes",
+    brandTitle:"Inbound Receiving Dashboard",
+    brandSub:"Inbound team — warehouse receiving operations",
+    live:"Live from receiving sheet",
+    loading:"Syncing with receiving sheet...",
+    cached:"Cached data (offline)",
+    receipts:"Receipts:",
+    updated:"Updated:",
+    themeDark:"🌙 Dark",
+    themeLight:"☀️ Light",
+    themeToDark:"Switch to dark mode",
+    themeToLight:"Switch to light mode",
+    langBtn:"العربية",
+    langAria:"Switch to Arabic",
+    refresh:"🔄 Refresh",
+    date:"Date",
+    allDates:"All dates",
+    facility:"Facility / Warehouse",
+    employee:"Employee",
+    status:"Status",
+    all:"All",
+    searchLabel:"Search vendor / ASN / RO",
+    searchPh:"Vendor name or ASN number...",
+    reset:"↺ Reset filters",
+    kpiReceipts:"Total receipts (ASNs)",
+    kpiReceiptsSub:"Inbound ASNs received",
+    kpiQty:"Total quantity received",
+    kpiQtySub:"Total units received",
+    kpiVendors:"Vendors",
+    kpiVendorsSub:"Unique vendors",
+    kpiAvg:"Avg quantity / receipt",
+    kpiAvgSub:"Average units per ASN",
+    capTitle:"📊 Facility receiving capacity",
+    capDescDefault:"Daily receiving capacity vs. quantity received",
+    capOne:"Receiving capacity from sheet — {date}",
+    capMany:"Receiving capacity from sheet — {n} days ({from} → {to})",
+    qtyByFac:"Quantity received by facility",
+    qtyByFacDesc:"Total units received, grouped by facility",
+    shareByFac:"Receipts share by facility",
+    shareByFacDesc:"Distribution of inbound receipts by facility",
+    topVendors:"Top 10 vendors by quantity",
+    topVendorsDesc:"Top 10 vendors by quantity received",
+    empPerf:"Inbound employee performance",
+    empPerfDesc:"Receipts handled per inbound employee",
+    hourly:"Receiving throughout the day",
+    hourlyDesc:"Inbound receipts by hour of day",
+    skuTitle:"SKU count per vendor — Top 10",
+    skuDesc:"Top 10 vendors by SKU count",
+    tableTitle:"Detailed receiving log",
+    tableDesc:"Click a column header to sort",
+    tableSearch:"🔍 Quick search in table...",
+    thDate:"Date", thVendor:"Vendor", thRo:"RO", thAsn:"ASN", thFacility:"Facility",
+    thQty:"Quantity", thStatus:"Status", thArrival:"Arrival time", thEmp:"Employee", thCars:"Cars", thSku:"SKU",
+    footer:"Live inbound receiving dashboard from Google Sheets — noon minutes inbound team",
+    units:"units",
+    qtyReceived:"Quantity received",
+    skuCount:"SKU count",
+    empty:"No matching results",
+    grandTotal:"🏆 Grand total (all facilities)",
+    capNoteMany:"Capacity summed across {n} selected days from the Capacity sheet",
+    capNoteDateCol:"Add a Date column in the Capacity tab to set a different target per day",
+    capOk:"Below 80% — capacity available",
+    capWarn:"80% to 99% — near maximum",
+    capOver:"100% or more — over capacity",
+    datesRange:"{n} dates ({from} → {to})",
+    axisReceipts:"Receipts",
+    tooltipReceipts:"Receipts: {n}",
+    tooltipQty:"Quantity received: {n} units",
+    tooltipShare:"{label}: {n} receipts",
+    hourlySeries:"Inbound receipts",
+    chatTitle:"Inbound assistant",
+    chatSub:"Ask about receiving, capacity, or anything else",
+    chatPh:"Ask anything...",
+    chatSend:"Send",
+    chatHello:"Hi — I can answer inbound receiving questions or anything else you need.",
+    chatBusy:"Thinking...",
+    chatFail:"Could not get a reply. Check the API key and try again.",
+    chatKeyPh:"Paste Gemini API key",
+    chatKeySave:"Save key",
+    chatNeedKey:"Save your Gemini API key first. It stays on this browser only.",
+    dateFrom:"From date",
+    dateTo:"To date",
+    copyLink:"Copy link",
+    linkCopied:"Link copied",
+    savePref:"Save as default",
+    prefSaved:"Default filters saved",
+    exportExcel:"Export Excel",
+    printReport:"Print / PDF",
+    accTitle:"Supplier schedule accuracy",
+    accDesc:"How inbound receipts matched the planned schedule",
+    qualityTitle:"Receiving data quality",
+    qualityDesc:"ASNs with missing employee, zero quantity, or missing ASN",
+    rankTitle:"Inbound team ranking",
+    rankDesc:"Employees ranked by receipts, quantity, and SKUs",
+    thRank:"#",
+    thAccuracy:"Schedule",
+    scrollHint:"Swipe the table sideways on mobile",
+    cmpNow:"Current period",
+    cmpPrev:"Previous period",
+    cmpWeek:"Same days last week",
+    cmpNone:"No comparison data",
+    deltaUp:"+{n} vs previous",
+    deltaDown:"{n} vs previous",
+    issueZero:"Zero quantity: {n}",
+    issueEmp:"Missing employee: {n}",
+    issueAsn:"Missing ASN: {n}",
+    issueOk:"No data-quality issues in the current view",
+    alertWarn:"{fac} is at {pct}% of receiving capacity",
+    alertOver:"{fac} exceeded receiving capacity ({pct}%)",
+    forecastTitle:"End-of-day forecast",
+    forecastText:"If receiving continues at the same hourly pace until 8:00 PM: {proj} units ({pct}% of capacity).",
+    forecastNeedDay:"Select a single day to see the end-of-day forecast.",
+    sheetError:"Could not read the live receiving sheet. Share it as Anyone with the link → Viewer, then refresh. Showing cached data if available.",
+    noAcc:"No schedule-accuracy values in this view",
+  },
+  ar:{
+    title:"لوحة استلام inbound | noon minutes",
+    brandTitle:"لوحة استلام inbound",
+    brandSub:"فريق inbound — عمليات استلام المخازن",
+    live:"متصل ببيانات شيت الاستلام",
+    loading:"جاري المزامنة مع شيت الاستلام...",
+    cached:"بيانات محفوظة (بدون اتصال)",
+    receipts:"الاستلامات:",
+    updated:"آخر تحديث:",
+    themeDark:"🌙 داكن",
+    themeLight:"☀️ نهاري",
+    themeToDark:"التبديل للوضع الداكن",
+    themeToLight:"التبديل للوضع النهاري",
+    langBtn:"English",
+    langAria:"التبديل إلى الإنجليزية",
+    refresh:"🔄 تحديث",
+    date:"التاريخ",
+    allDates:"كل التواريخ",
+    facility:"المستودع / الـ Facility",
+    employee:"الموظف",
+    status:"الحالة",
+    all:"الكل",
+    searchLabel:"بحث بالمورد / ASN / RO",
+    searchPh:"اسم المورد أو رقم الـ ASN...",
+    reset:"↺ إعادة ضبط الفلاتر",
+    kpiReceipts:"إجمالي الاستلامات (ASN)",
+    kpiReceiptsSub:"أوامر الاستلام الواردة",
+    kpiQty:"إجمالي الكمية المستلمة",
+    kpiQtySub:"إجمالي الوحدات المستلمة",
+    kpiVendors:"الموردون",
+    kpiVendorsSub:"عدد الموردين",
+    kpiAvg:"متوسط الكمية / استلام",
+    kpiAvgSub:"متوسط الوحدات لكل ASN",
+    capTitle:"📊 الطاقة الاستيعابية للاستلام",
+    capDescDefault:"الطاقة اليومية مقابل الكمية المستلمة",
+    capOne:"الطاقة الاستيعابية من الشيت — {date}",
+    capMany:"الطاقة الاستيعابية من الشيت — {n} أيام ({from} → {to})",
+    qtyByFac:"الكمية المستلمة حسب المستودع",
+    qtyByFacDesc:"إجمالي الوحدات المستلمة لكل مستودع",
+    shareByFac:"توزيع الاستلامات حسب المستودع",
+    shareByFacDesc:"حصة كل مستودع من استلامات inbound",
+    topVendors:"أعلى 10 موردين حسب الكمية",
+    topVendorsDesc:"أكثر الموردين استلامًا للكمية",
+    empPerf:"أداء موظفي inbound",
+    empPerfDesc:"عدد الاستلامات لكل موظف inbound",
+    hourly:"توزيع الاستلام خلال اليوم",
+    hourlyDesc:"الاستلامات الواردة حسب الساعة",
+    skuTitle:"عدد الـ SKU لكل مورد — أعلى 10",
+    skuDesc:"أعلى 10 موردين حسب عدد الأصناف",
+    tableTitle:"سجل الاستلام التفصيلي",
+    tableDesc:"اضغط على عنوان العمود للترتيب",
+    tableSearch:"🔍 بحث سريع في الجدول...",
+    thDate:"التاريخ", thVendor:"المورد", thRo:"RO", thAsn:"ASN", thFacility:"المستودع",
+    thQty:"الكمية", thStatus:"الحالة", thArrival:"وقت الوصول", thEmp:"الموظف", thCars:"السيارات", thSku:"SKU",
+    footer:"لوحة استلام inbound متصلة مباشرة بجوجل شيت — فريق inbound في noon minutes",
+    units:"وحدة",
+    qtyReceived:"الكمية المستلمة",
+    skuCount:"عدد الـ SKU",
+    empty:"لا توجد نتائج مطابقة",
+    grandTotal:"🏆 الإجمالي (كل المستودعات)",
+    capNoteMany:"تم جمع الطاقة على {n} أيام مختارة من شيت الكابسيتي",
+    capNoteDateCol:"أضف عمود Date في شيت الكابسيتي لتحديد طاقة مختلفة لكل يوم",
+    capOk:"أقل من 80٪ — طاقة متاحة",
+    capWarn:"من 80٪ إلى 99٪ — قرب الحد الأقصى",
+    capOver:"100٪ فأكثر — تجاوز الطاقة",
+    datesRange:"{n} تواريخ ({from} → {to})",
+    axisReceipts:"الاستلامات",
+    tooltipReceipts:"الاستلامات: {n}",
+    tooltipQty:"الكمية المستلمة: {n} وحدة",
+    tooltipShare:"{label}: {n} استلام",
+    hourlySeries:"استلامات inbound",
+    chatTitle:"مساعد inbound",
+    chatSub:"اسأل عن الاستلام أو الكابسيتي أو أي حاجة تانية",
+    chatPh:"اسأل عن أي حاجة...",
+    chatSend:"إرسال",
+    chatHello:"أهلاً — أقدر أجاوب على أسئلة استلام inbound أو أي سؤال تاني.",
+    chatBusy:"بفكّر...",
+    chatFail:"ماقدرتش أرد. راجع الـ API key وجرب تاني.",
+    chatKeyPh:"لصِق Gemini API key",
+    chatKeySave:"حفظ المفتاح",
+    chatNeedKey:"احفظ Gemini API key أولاً. بيتخزن على المتصفح ده فقط.",
+    dateFrom:"من تاريخ",
+    dateTo:"إلى تاريخ",
+    copyLink:"نسخ الرابط",
+    linkCopied:"تم نسخ الرابط",
+    savePref:"حفظ كافتراضي",
+    prefSaved:"تم حفظ الفلاتر الافتراضية",
+    exportExcel:"تصدير Excel",
+    printReport:"طباعة / PDF",
+    accTitle:"دقة التزام المورد بالجدول",
+    accDesc:"هل الاستلامات جاءت حسب الجدول المخطط",
+    qualityTitle:"جودة بيانات الاستلام",
+    qualityDesc:"استلامات بدون موظف أو بكمية صفر أو بدون ASN",
+    rankTitle:"ترتيب فريق inbound",
+    rankDesc:"الموظفون حسب الاستلامات والكمية والـ SKU",
+    thRank:"#",
+    thAccuracy:"الجدول",
+    scrollHint:"اسحب الجدول جانبًا على الموبايل",
+    cmpNow:"الفترة الحالية",
+    cmpPrev:"الفترة السابقة",
+    cmpWeek:"نفس الأيام الأسبوع الماضي",
+    cmpNone:"لا توجد بيانات للمقارنة",
+    deltaUp:"+{n} عن السابق",
+    deltaDown:"{n} عن السابق",
+    issueZero:"كمية صفر: {n}",
+    issueEmp:"بدون موظف: {n}",
+    issueAsn:"بدون ASN: {n}",
+    issueOk:"لا توجد مشاكل جودة في العرض الحالي",
+    alertWarn:"{fac} وصل إلى {pct}% من طاقة الاستلام",
+    alertOver:"{fac} تجاوز طاقة الاستلام ({pct}%)",
+    forecastTitle:"توقع نهاية اليوم",
+    forecastText:"لو الاستلام كمّل بنفس المعدل لحد 8:00 مساءً: {proj} وحدة ({pct}% من الطاقة).",
+    forecastNeedDay:"اختَر يومًا واحدًا لعرض توقع نهاية اليوم.",
+    sheetError:"تعذر قراءة شيت الاستلام. اجعله Anyone with the link → Viewer ثم حدّث الصفحة. يتم عرض بيانات محفوظة إن وُجدت.",
+    noAcc:"لا توجد قيم لدقة الجدول في هذا العرض",
+  }
+};
+
+let currentLang = document.documentElement.lang === "ar" ? "ar" : "en";
+let liveState = "loading";
+
+function t(key, vars){
+  let s = (I18N[currentLang] && I18N[currentLang][key]) || I18N.en[key] || key;
+  if(vars){
+    Object.keys(vars).forEach(k=>{ s = s.replaceAll("{"+k+"}", vars[k]); });
+  }
+  return s;
+}
+function loc(){ return currentLang==="ar" ? "ar-EG" : "en-US"; }
+function applyStaticI18n(){
+  document.title = t("title");
+  document.querySelectorAll("[data-i18n]").forEach(el=>{ el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll("[data-i18n-placeholder]").forEach(el=>{ el.placeholder = t(el.dataset.i18nPlaceholder); });
+  setLiveBadge(liveState);
+  syncThemeButton();
+  syncLangButton();
+  const errBox = document.getElementById("sheetError");
+  if(errBox && !errBox.hidden) errBox.textContent = t("sheetError");
+}
+function syncLangButton(){
+  const btn = document.getElementById("btnLang");
+  if(!btn) return;
+  btn.textContent = t("langBtn");
+  btn.setAttribute("aria-label", t("langAria"));
+}
+function setLang(lang){
+  currentLang = lang==="ar" ? "ar" : "en";
+  document.documentElement.lang = currentLang;
+  document.documentElement.dir = currentLang==="ar" ? "rtl" : "ltr";
+  try{ localStorage.setItem("inbound-lang", currentLang); }catch(e){}
+  applyStaticI18n();
+  populateFilterOptions();
+  render();
+}
+function initLang(){
+  syncLangButton();
+  document.getElementById("btnLang").addEventListener("click", ()=>{
+    setLang(currentLang==="ar" ? "en" : "ar");
+  });
+}
 
 // ===================== FACILITY MERGE =====================
 // CAIID03 and CAIID04 are merged into a single facility group across all filters, charts, and the table
 const FACILITY_MERGE = { "CAIID03":"CAIID03+04", "CAIID04":"CAIID03+04" };
 
 // ===================== CAPACITY DATA =====================
-// Daily maximum capacity per facility (in units) — source: capacity report.
-// Scaled automatically by the number of distinct dates in the current view.
+// Fallback daily capacity if the Capacity tab is missing or a date has no row.
+// Live values come from sheet tab "Capacity": Date | Facility | Capacity
 const CAPACITY_DATA = {
   "CAIID01":   59200,
   "CAIID03+04": 1500 + 7200, // CAIID03 (1,500) + CAIID04 (7,200)
@@ -390,11 +878,55 @@ const FALLBACK_DATA = [
 
 // ===================== HELPERS =====================
 const COLORS = ["#f5e023","#db3332","#141414","#6b6f76","#1fb08f","#0abde3","#ff9f43","#a06bff"];
-const fmt = n => n.toLocaleString("en-US");
+const fmt = n => n.toLocaleString(loc());
+const MONTHS = {
+  january:1,february:2,march:3,april:4,may:5,june:6,
+  july:7,august:8,september:9,october:10,november:11,december:12
+};
+function pad2(n){ return String(n).padStart(2,"0"); }
+function ymd(y,m,d){ return `${y}-${pad2(m)}-${pad2(d)}`; }
+
+// Parse sheet dates as calendar days (no UTC shift).
+// "September 17, 2026" + toISOString() becomes Sep 16 in Egypt (UTC+2/+3).
+function parseSheetDate(dateRaw){
+  if(dateRaw==null) return "";
+  const s = dateRaw.toString().trim();
+  if(!s) return "";
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+
+  const named = s.match(/^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})$/);
+  if(named){
+    const mo = MONTHS[named[1].toLowerCase()];
+    if(mo) return ymd(named[3], mo, named[2]);
+  }
+
+  const dmy = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
+  if(dmy){
+    const a = parseInt(dmy[1],10), b = parseInt(dmy[2],10), y = parseInt(dmy[3],10);
+    if(a>12) return ymd(y, b, a);
+    if(b>12) return ymd(y, a, b);
+    return ymd(y, b, a); // sheet uses day-first style when numeric
+  }
+
+  if(/^\d+(\.\d+)?$/.test(s)){
+    const n = parseFloat(s);
+    if(n>20000 && n<80000){
+      const utc = new Date(Date.UTC(1899,11,30) + Math.floor(n)*86400000);
+      return utc.toISOString().slice(0,10);
+    }
+  }
+
+  const dt = new Date(s);
+  if(!isNaN(dt.getTime())) return ymd(dt.getFullYear(), dt.getMonth()+1, dt.getDate());
+  return s;
+}
+
 const enDate = d => {
-  const dt = new Date(d+"T00:00:00");
-  if(isNaN(dt.getTime())) return d;
-  return dt.toLocaleDateString("en-US", {year:"numeric",month:"long",day:"numeric"});
+  const iso = parseSheetDate(d);
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(!m) return d;
+  const dt = new Date(Number(m[1]), Number(m[2])-1, Number(m[3]));
+  return dt.toLocaleDateString(loc(), {year:"numeric",month:"long",day:"numeric"});
 };
 function timeToMinutes(t){
   if(!t) return null;
@@ -414,6 +946,7 @@ function hourLabel(h){
 function unique(arr, key){ return [...new Set(arr.map(r=>r[key]))].filter(Boolean).sort(); }
 
 let RAW_DATA = [];
+let RAW_CAPACITY = [];
 let charts = {};
 let sortState = {key:"arrival", dir:1};
 let datesInitialized = false;
@@ -435,11 +968,7 @@ function normalizeRow(row){
   if(!vendor && !asn) return null;
 
   const dateRaw = (pick(row,["Date"])||"").toString().trim();
-  let iso = dateRaw;
-  const parsedDate = new Date(dateRaw);
-  if(dateRaw && !isNaN(parsedDate.getTime())){
-    iso = parsedDate.toISOString().slice(0,10);
-  }
+  const iso = parseSheetDate(dateRaw);
 
   const qtyRaw = (pick(row,["Quantity Received"])||"0").toString().replace(/,/g,"").trim();
   const carsRaw = (pick(row,["Cars"])||"0").toString().replace(/,/g,"").trim();
@@ -465,18 +994,91 @@ function normalizeRow(row){
   };
 }
 
+function normalizeFacilityName(raw){
+  const s = (raw||"").toString().trim();
+  if(!s || /^grand total/i.test(s)) return "";
+  if(/CAIID03/i.test(s) && /CAIID04/i.test(s)) return "CAIID03+04";
+  const m = s.match(/CAIID\d+/i);
+  if(!m) return "";
+  const code = m[0].toUpperCase();
+  return FACILITY_MERGE[code] || code;
+}
+
+function normalizeCapacityRow(row){
+  const facility = normalizeFacilityName(pick(row,["Facility","WH","Warehouse"]));
+  if(!facility) return null;
+  const capRaw = (pick(row,["Capacity","Max Capacity","Daily Capacity"])||"").toString().replace(/,/g,"").trim();
+  const capacity = parseInt(capRaw,10);
+  if(!capacity) return null;
+  const dateRaw = (pick(row,["Date"])||"").toString().trim();
+  return { date: dateRaw ? parseSheetDate(dateRaw) : "", facility, capacity };
+}
+
+function capacityForDate(date){
+  const map = {};
+  CAPACITY_ORDER.forEach(fac=>{
+    const exact = RAW_CAPACITY.filter(r=>r.facility===fac && r.date===date);
+    if(exact.length){
+      map[fac] = exact.reduce((s,r)=>s+r.capacity,0);
+      return;
+    }
+    const prior = RAW_CAPACITY
+      .filter(r=>r.facility===fac && r.date && r.date<=date)
+      .sort((a,b)=>a.date.localeCompare(b.date));
+    if(prior.length){
+      map[fac] = prior[prior.length-1].capacity;
+      return;
+    }
+    const undated = RAW_CAPACITY.filter(r=>r.facility===fac && !r.date);
+    if(undated.length){
+      map[fac] = undated[undated.length-1].capacity;
+      return;
+    }
+    map[fac] = CAPACITY_DATA[fac] || 0;
+  });
+  return map;
+}
+
+function capacityMapForDates(dates){
+  const out = Object.fromEntries(CAPACITY_ORDER.map(f=>[f,0]));
+  const days = dates.length ? dates : [null];
+  days.forEach(d=>{
+    const dayMap = d ? capacityForDate(d) : CAPACITY_DATA;
+    CAPACITY_ORDER.forEach(fac=>{ out[fac] += (dayMap[fac] || CAPACITY_DATA[fac] || 0); });
+  });
+  return out;
+}
+
 function setLiveBadge(state){
+  liveState = state || liveState;
   const el = document.getElementById("liveBadge");
   el.classList.remove("live","cached","loading");
-  if(state==="loading"){
-    el.classList.add("loading");
-    el.innerHTML = `<span class="dot"></span> Syncing with Google Sheets...`;
-  } else if(state==="live"){
-    el.classList.add("live");
-    el.innerHTML = `<span class="dot"></span> Live from Google Sheets`;
-  } else {
-    el.classList.add("cached");
-    el.innerHTML = `<span class="dot"></span> Cached data (offline)`;
+  const key = liveState==="loading" ? "loading" : liveState==="live" ? "live" : "cached";
+  el.classList.add(liveState==="loading" ? "loading" : liveState==="live" ? "live" : "cached");
+  el.innerHTML = `<span class="dot"></span> ${t(key)}`;
+}
+
+async function fetchCsv(url){
+  const sep = url.includes("?") ? "&" : "?";
+  const res = await fetch(url + sep + "_ts=" + Date.now(), {cache:"no-store"});
+  if(!res.ok) throw new Error("HTTP "+res.status);
+  return res.text();
+}
+
+async function loadCapacitySheet(){
+  if(typeof Papa === "undefined") return;
+  for(const url of CAPACITY_CSV_URLS){
+    try{
+      const text = await fetchCsv(url);
+      const parsed = Papa.parse(text, {header:true, skipEmptyLines:true});
+      const rows = parsed.data.map(normalizeCapacityRow).filter(Boolean);
+      if(rows.length){
+        RAW_CAPACITY = rows;
+        return;
+      }
+    }catch(err){
+      console.warn("Capacity sheet fetch failed:", url, err);
+    }
   }
 }
 
@@ -484,25 +1086,30 @@ async function loadData(){
   const btn = document.getElementById("btnRefresh");
   btn.disabled = true;
   setLiveBadge("loading");
+  const capPromise = loadCapacitySheet();
   try{
-    const url = CSV_BASE_URL + "&_ts=" + Date.now();
-    const res = await fetch(url, {cache:"no-store"});
-    if(!res.ok) throw new Error("HTTP "+res.status);
-    const text = await res.text();
+    const text = await fetchCsv(CSV_BASE_URL);
     if(typeof Papa === "undefined") throw new Error("CSV parser unavailable");
     const parsed = Papa.parse(text, {header:true, skipEmptyLines:true});
     const rows = parsed.data.map(normalizeRow).filter(Boolean);
     if(!rows.length) throw new Error("No data rows found in sheet");
     RAW_DATA = rows;
+    await capPromise;
     setLiveBadge("live");
+    const errBox = document.getElementById("sheetError");
+    if(errBox) errBox.hidden = true;
   }catch(err){
     console.warn("Live data fetch failed, falling back:", err);
     if(!RAW_DATA.length) RAW_DATA = FALLBACK_DATA;
+    await capPromise;
     setLiveBadge("cached");
+    const errBox = document.getElementById("sheetError");
+    if(errBox){ errBox.hidden = false; errBox.textContent = t("sheetError"); }
   }
   populateFilterOptions();
+  applyInitialFilters();
   render();
-  document.getElementById("metaUpdated").textContent = new Date().toLocaleString("en-US");
+  document.getElementById("metaUpdated").textContent = new Date().toLocaleString(loc());
   btn.disabled = false;
 }
 
@@ -529,24 +1136,83 @@ function populateFilterOptions(){
   const statuses = unique(RAW_DATA,"status");
   const dates = [...new Set(RAW_DATA.map(r=>r.date))].filter(Boolean).sort().reverse();
 
-  rebuildSelect(document.getElementById("fFacility"), facilities, "All");
-  rebuildSelect(document.getElementById("fEmp"), emps, "All");
-  rebuildSelect(document.getElementById("fStatus"), statuses, "All");
+  rebuildSelect(document.getElementById("fFacility"), facilities, t("all"));
+  rebuildSelect(document.getElementById("fEmp"), emps, t("all"));
+  rebuildSelect(document.getElementById("fStatus"), statuses, t("all"));
+  rebuildSelect(document.getElementById("fDateFrom"), dates, t("allDates"), enDate);
+  rebuildSelect(document.getElementById("fDateTo"), dates, t("allDates"), enDate);
+}
 
-  const fDate = document.getElementById("fDate");
-  const prevDateVal = fDate.value;
-  rebuildSelect(fDate, dates, "All Dates", enDate);
-  if(!datesInitialized){
-    if(dates.length) fDate.value = dates[0];
-    datesInitialized = true;
-  } else if(prevDateVal && !dates.includes(prevDateVal)){
-    fDate.value = "";
+function readPrefs(){
+  try{ return JSON.parse(localStorage.getItem("inbound-prefs")||"{}"); }catch(e){ return {}; }
+}
+
+function applyInitialFilters(){
+  if(datesInitialized) return;
+  datesInitialized = true;
+  const params = new URLSearchParams(location.search);
+  const prefs = readPrefs();
+  const dates = [...new Set(RAW_DATA.map(r=>r.date))].filter(Boolean).sort();
+  const latest = dates[dates.length-1] || "";
+  const one = params.get("date") || "";
+  const from = params.get("from") || one || prefs.from || latest;
+  const to = params.get("to") || one || prefs.to || latest;
+  const fac = params.get("facility") || prefs.facility || "";
+  if(from) document.getElementById("fDateFrom").value = from;
+  if(to) document.getElementById("fDateTo").value = to;
+  if(fac && [...document.getElementById("fFacility").options].some(o=>o.value===fac)){
+    document.getElementById("fFacility").value = fac;
   }
 }
 
+function syncUrl(){
+  const {from, to} = getDateBounds();
+  const facility = document.getElementById("fFacility").value;
+  const qs = new URLSearchParams();
+  if(from && to && from===to) qs.set("date", from);
+  else {
+    if(from) qs.set("from", from);
+    if(to) qs.set("to", to);
+  }
+  if(facility) qs.set("facility", facility);
+  const next = qs.toString();
+  const url = next ? `${location.pathname}?${next}` : location.pathname;
+  history.replaceState({}, "", url);
+}
+
+function getDateBounds(){
+  let from = document.getElementById("fDateFrom").value;
+  let to = document.getElementById("fDateTo").value;
+  if(from && to && from>to){ const x=from; from=to; to=x; }
+  return {from, to};
+}
+
+function nonDateMatch(r){
+  const facility = document.getElementById("fFacility").value;
+  const emp = document.getElementById("fEmp").value;
+  const status = document.getElementById("fStatus").value;
+  const search = document.getElementById("fSearch").value.trim().toLowerCase();
+  if(facility && r.facility!==facility) return false;
+  if(emp && r.emp!==emp) return false;
+  if(status && r.status!==status) return false;
+  if(search){
+    const hay = (r.vendor+" "+r.asn+" "+r.ro).toLowerCase();
+    if(!hay.includes(search)) return false;
+  }
+  return true;
+}
+
+function onFiltersChanged(){
+  const {from, to} = getDateBounds();
+  document.getElementById("fDateFrom").value = from;
+  document.getElementById("fDateTo").value = to;
+  syncUrl();
+  render();
+}
+
 function initFilterEvents(){
-  ["fFacility","fEmp","fStatus","fDate"].forEach(id=>{
-    document.getElementById(id).addEventListener("change", render);
+  ["fFacility","fEmp","fStatus","fDateFrom","fDateTo"].forEach(id=>{
+    document.getElementById(id).addEventListener("change", onFiltersChanged);
   });
   document.getElementById("fSearch").addEventListener("input", render);
   document.getElementById("tableSearch").addEventListener("input", renderTableOnly);
@@ -554,12 +1220,29 @@ function initFilterEvents(){
     document.getElementById("fFacility").value = "";
     document.getElementById("fEmp").value = "";
     document.getElementById("fStatus").value = "";
-    document.getElementById("fDate").value = "";
+    document.getElementById("fDateFrom").value = "";
+    document.getElementById("fDateTo").value = "";
     document.getElementById("fSearch").value = "";
     document.getElementById("tableSearch").value = "";
-    render();
+    onFiltersChanged();
   });
   document.getElementById("btnRefresh").addEventListener("click", loadData);
+  document.getElementById("btnExport").addEventListener("click", exportExcel);
+  document.getElementById("btnPrint").addEventListener("click", ()=>window.print());
+  document.getElementById("btnCopyLink").addEventListener("click", ()=>{
+    syncUrl();
+    navigator.clipboard.writeText(location.href).then(()=>{
+      document.getElementById("btnCopyLink").textContent = t("linkCopied");
+      setTimeout(()=>{ document.getElementById("btnCopyLink").textContent = t("copyLink"); }, 1600);
+    }).catch(()=>{});
+  });
+  document.getElementById("btnSavePref").addEventListener("click", ()=>{
+    const {from, to} = getDateBounds();
+    const prefs = {from, to, facility: document.getElementById("fFacility").value};
+    try{ localStorage.setItem("inbound-prefs", JSON.stringify(prefs)); }catch(e){}
+    document.getElementById("btnSavePref").textContent = t("prefSaved");
+    setTimeout(()=>{ document.getElementById("btnSavePref").textContent = t("savePref"); }, 1600);
+  });
   document.querySelectorAll("thead th[data-key]").forEach(th=>{
     th.addEventListener("click", ()=>{
       const key = th.dataset.key;
@@ -571,20 +1254,30 @@ function initFilterEvents(){
 }
 
 function getFiltered(){
-  const date = document.getElementById("fDate").value;
-  const facility = document.getElementById("fFacility").value;
-  const emp = document.getElementById("fEmp").value;
-  const status = document.getElementById("fStatus").value;
-  const search = document.getElementById("fSearch").value.trim().toLowerCase();
+  const {from, to} = getDateBounds();
   return RAW_DATA.filter(r=>{
-    if(date && r.date!==date) return false;
-    if(facility && r.facility!==facility) return false;
-    if(emp && r.emp!==emp) return false;
-    if(status && r.status!==status) return false;
-    if(search){
-      const hay = (r.vendor+" "+r.asn+" "+r.ro).toLowerCase();
-      if(!hay.includes(search)) return false;
-    }
+    if(from && r.date < from) return false;
+    if(to && r.date > to) return false;
+    return nonDateMatch(r);
+  });
+}
+
+function addDays(iso, n){
+  const p = (iso||"").split("-").map(Number);
+  if(p.length<3) return "";
+  const dt = new Date(p[0], p[1]-1, p[2]+n);
+  return ymd(dt.getFullYear(), dt.getMonth()+1, dt.getDate());
+}
+function spanDays(from, to){
+  if(!from || !to) return 1;
+  const a = new Date(from+"T00:00:00");
+  const b = new Date(to+"T00:00:00");
+  return Math.max(1, Math.round((b-a)/86400000)+1);
+}
+function filterRange(rows, from, to){
+  return rows.filter(r=>{
+    if(from && r.date < from) return false;
+    if(to && r.date > to) return false;
     return true;
   });
 }
@@ -605,7 +1298,7 @@ function renderKPIs(data){
   const metaDateEl = document.getElementById("metaDate");
   if(uniqueDates.length===0) metaDateEl.textContent = "-";
   else if(uniqueDates.length===1) metaDateEl.textContent = enDate(uniqueDates[0]);
-  else metaDateEl.textContent = `${uniqueDates.length} dates (${enDate(uniqueDates[0])} → ${enDate(uniqueDates[uniqueDates.length-1])})`;
+  else metaDateEl.textContent = t("datesRange", {n:uniqueDates.length, from:enDate(uniqueDates[0]), to:enDate(uniqueDates[uniqueDates.length-1])});
 }
 
 // ===================== CHARTS =====================
@@ -614,12 +1307,50 @@ function destroyCharts(){
   charts = {};
 }
 
-Chart.defaults.color = "#6b6f76";
-Chart.defaults.font.family = "Inter";
-Chart.defaults.borderColor = "#e7e8ec";
+function themeColors(){
+  const cs = getComputedStyle(document.documentElement);
+  return {
+    muted: cs.getPropertyValue("--muted").trim() || "#6b6f76",
+    border: cs.getPropertyValue("--border").trim() || "#e7e8ec",
+    grid: cs.getPropertyValue("--chart-grid").trim() || "#eceef1",
+    panel: cs.getPropertyValue("--panel").trim() || "#ffffff",
+  };
+}
+
+function applyChartDefaults(){
+  const t = themeColors();
+  Chart.defaults.color = t.muted;
+  Chart.defaults.font.family = currentLang==="ar" ? "Cairo" : "Inter";
+  Chart.defaults.borderColor = t.border;
+}
+
+function syncThemeButton(){
+  const btn = document.getElementById("btnTheme");
+  if(!btn) return;
+  const dark = document.documentElement.getAttribute("data-theme")==="dark";
+  btn.textContent = dark ? t("themeLight") : t("themeDark");
+  btn.setAttribute("aria-label", dark ? t("themeToLight") : t("themeToDark"));
+}
+
+function setTheme(theme){
+  document.documentElement.setAttribute("data-theme", theme);
+  try{ localStorage.setItem("inbound-theme", theme); }catch(e){}
+  syncThemeButton();
+  if(RAW_DATA.length) render();
+}
+
+function initTheme(){
+  syncThemeButton();
+  document.getElementById("btnTheme").addEventListener("click", ()=>{
+    const next = document.documentElement.getAttribute("data-theme")==="dark" ? "light" : "dark";
+    setTheme(next);
+  });
+}
 
 function renderCharts(data){
   destroyCharts();
+  applyChartDefaults();
+  const tc = themeColors();
 
   // ---- Facility aggregates ----
   const byFacilityQty = {};
@@ -635,7 +1366,7 @@ function renderCharts(data){
     data:{
       labels: facLabels,
       datasets:[{
-        label:"Quantity Received",
+        label:t("qtyReceived"),
         data: facLabels.map(f=>byFacilityQty[f]),
         backgroundColor: facLabels.map((_,i)=>COLORS[i%COLORS.length]),
         borderRadius:8,
@@ -645,9 +1376,9 @@ function renderCharts(data){
     options:{
       responsive:true, maintainAspectRatio:false,
       plugins:{ legend:{display:false},
-        tooltip:{ callbacks:{ label:(c)=>fmt(c.parsed.y)+" units" } } },
+        tooltip:{ callbacks:{ label:(c)=>fmt(c.parsed.y)+" "+t("units") } } },
       scales:{
-        y:{ grid:{color:"#eceef1"}, ticks:{callback:v=>fmt(v)} },
+        y:{ grid:{color:tc.grid}, ticks:{callback:v=>fmt(v)} },
         x:{ grid:{display:false} }
       }
     }
@@ -660,7 +1391,7 @@ function renderCharts(data){
       datasets:[{
         data: facLabels.map(f=>byFacilityCount[f]),
         backgroundColor: facLabels.map((_,i)=>COLORS[i%COLORS.length]),
-        borderColor:"#ffffff",
+        borderColor:tc.panel,
         borderWidth:3,
       }]
     },
@@ -669,7 +1400,7 @@ function renderCharts(data){
       cutout:"62%",
       plugins:{
         legend:{ position:"bottom", labels:{boxWidth:10, padding:14, font:{size:11}} },
-        tooltip:{ callbacks:{ label:(c)=>`${c.label}: ${c.parsed} shipments` } }
+        tooltip:{ callbacks:{ label:(c)=>t("tooltipShare",{label:c.label, n:c.parsed}) } }
       }
     }
   });
@@ -689,7 +1420,7 @@ function renderCharts(data){
     data:{
       labels: topVendorsQty.map(v=>v[0].length>28 ? v[0].slice(0,28)+"…" : v[0]),
       datasets:[{
-        label:"Quantity",
+        label:t("qtyReceived"),
         data: topVendorsQty.map(v=>v[1]),
         backgroundColor:"#db3332",
         borderRadius:6,
@@ -700,9 +1431,9 @@ function renderCharts(data){
       indexAxis:"y",
       responsive:true, maintainAspectRatio:false,
       plugins:{ legend:{display:false},
-        tooltip:{ callbacks:{ label:(c)=>fmt(c.parsed.x)+" units" } } },
+        tooltip:{ callbacks:{ label:(c)=>fmt(c.parsed.x)+" "+t("units") } } },
       scales:{
-        x:{ grid:{color:"#eceef1"}, ticks:{callback:v=>fmt(v)} },
+        x:{ grid:{color:tc.grid}, ticks:{callback:v=>fmt(v)} },
         y:{ grid:{display:false}, ticks:{font:{size:11}} }
       }
     }
@@ -713,7 +1444,7 @@ function renderCharts(data){
     data:{
       labels: topVendorsSku.map(v=>v[0].length>26 ? v[0].slice(0,26)+"…" : v[0]),
       datasets:[{
-        label:"SKU Count",
+        label:t("skuCount"),
         data: topVendorsSku.map(v=>v[1]),
         backgroundColor:"#141414",
         borderRadius:6,
@@ -724,9 +1455,9 @@ function renderCharts(data){
       indexAxis:"y",
       responsive:true, maintainAspectRatio:false,
       plugins:{ legend:{display:false},
-        tooltip:{ callbacks:{ label:(c)=>fmt(c.parsed.x)+" SKU" } } },
+        tooltip:{ callbacks:{ label:(c)=>fmt(c.parsed.x)+" "+t("skuCount") } } },
       scales:{
-        x:{ grid:{color:"#eceef1"}, ticks:{stepSize:1} },
+        x:{ grid:{color:tc.grid}, ticks:{stepSize:1} },
         y:{ grid:{display:false}, ticks:{font:{size:11}} }
       }
     }
@@ -747,7 +1478,7 @@ function renderCharts(data){
       labels: empLabels,
       datasets:[
         {
-          label:"Shipments",
+          label:t("axisReceipts"),
           data: empLabels.map(e=>byEmpCount[e]),
           backgroundColor:"#f5e023",
           borderRadius:6,
@@ -755,7 +1486,7 @@ function renderCharts(data){
           maxBarThickness:26,
         },
         {
-          label:"Quantity Received",
+          label:t("qtyReceived"),
           data: empLabels.map(e=>byEmpQty[e]),
           backgroundColor:"#db3332",
           borderRadius:6,
@@ -769,12 +1500,12 @@ function renderCharts(data){
       plugins:{
         legend:{position:"bottom", labels:{boxWidth:10, font:{size:11}}},
         tooltip:{ callbacks:{ label:(c)=> c.dataset.yAxisID==="y1"
-            ? `Quantity Received: ${fmt(c.parsed.y)} units`
-            : `Shipments: ${fmt(c.parsed.y)}` } }
+            ? t("tooltipQty",{n:fmt(c.parsed.y)})
+            : t("tooltipReceipts",{n:fmt(c.parsed.y)}) } }
       },
       scales:{
-        y:{ position:"left", grid:{color:"#eceef1"}, ticks:{stepSize:1}, title:{display:true,text:"Shipments",font:{size:10}} },
-        y1:{ position:"right", grid:{display:false}, ticks:{callback:v=>fmt(v)}, title:{display:true,text:"Quantity Received",font:{size:10}} },
+        y:{ position:"left", grid:{color:tc.grid}, ticks:{stepSize:1}, title:{display:true,text:t("axisReceipts"),font:{size:10}} },
+        y1:{ position:"right", grid:{display:false}, ticks:{callback:v=>fmt(v)}, title:{display:true,text:t("qtyReceived"),font:{size:10}} },
         x:{ grid:{display:false}, ticks:{font:{size:10}} }
       }
     }
@@ -794,7 +1525,7 @@ function renderCharts(data){
     data:{
       labels: activeHours.map(hourLabel),
       datasets:[{
-        label:"Shipments Received",
+        label:t("hourlySeries"),
         data: activeHours.map(h=>hourCounts[h]),
         borderColor:"#db3332",
         backgroundColor:"rgba(219,51,50,.10)",
@@ -808,7 +1539,7 @@ function renderCharts(data){
       responsive:true, maintainAspectRatio:false,
       plugins:{ legend:{display:false} },
       scales:{
-        y:{ grid:{color:"#eceef1"}, ticks:{stepSize:1} },
+        y:{ grid:{color:tc.grid}, ticks:{stepSize:1} },
         x:{ grid:{display:false}, ticks:{font:{size:10}} }
       }
     }
@@ -820,11 +1551,23 @@ function renderCapacity(data){
   const byFacilityQty = {};
   data.forEach(r=>{ byFacilityQty[r.facility] = (byFacilityQty[r.facility]||0)+r.qty; });
 
-  const numDays = Math.max(1, new Set(data.map(r=>r.date)).size);
+  const {from, to} = getDateBounds();
+  const selectedDate = from && to && from===to ? from : "";
+  const uniqueDates = [...new Set(data.map(r=>r.date))].filter(Boolean).sort();
+  const capDates = selectedDate ? [selectedDate] : uniqueDates;
+  const capMap = capacityMapForDates(capDates);
+  const hasDatedCapacity = RAW_CAPACITY.some(r=>r.date);
+  const capDesc = document.getElementById("capDesc");
+  if(capDesc){
+    if(selectedDate) capDesc.textContent = t("capOne",{date:enDate(selectedDate)});
+    else if(uniqueDates.length===1) capDesc.textContent = t("capOne",{date:enDate(uniqueDates[0])});
+    else if(uniqueDates.length>1) capDesc.textContent = t("capMany",{n:uniqueDates.length, from:enDate(uniqueDates[0]), to:enDate(uniqueDates[uniqueDates.length-1])});
+    else capDesc.textContent = t("capDescDefault");
+  }
 
   let totalActual = 0, totalCapacity = 0;
   const rowsHtml = CAPACITY_ORDER.map(fac=>{
-    const capacity = (CAPACITY_DATA[fac] || 0) * numDays;
+    const capacity = capMap[fac] || 0;
     const actual = byFacilityQty[fac] || 0;
     totalActual += actual; totalCapacity += capacity;
     const pct = capacity ? Math.round(actual/capacity*100) : 0;
@@ -834,7 +1577,7 @@ function renderCapacity(data){
       <div class="cap-row">
         <div class="cap-row-head">
           <span class="fac">${fac}</span>
-          <span class="nums">${fmt(actual)} / ${fmt(capacity)} units &nbsp; <b style="color:${pct>=100?'#db3332':pct>=80?'#c9b600':'#1fb08f'}">${pct}%</b></span>
+          <span class="nums">${fmt(actual)} / ${fmt(capacity)} ${t("units")} &nbsp; <b style="color:${pct>=100?'#db3332':pct>=80?'#c9b600':'#1fb08f'}">${pct}%</b></span>
         </div>
         <div class="cap-track">
           <div class="cap-fill ${cls}" style="width:${width}%"></div>
@@ -850,20 +1593,21 @@ function renderCapacity(data){
   document.getElementById("capacityBars").innerHTML = `
     <div class="cap-row cap-total">
       <div class="cap-row-head">
-        <span class="fac">🏆 Grand Total (All Facilities)</span>
-        <span class="nums">${fmt(totalActual)} / ${fmt(totalCapacity)} units &nbsp; <b style="color:${totalPct>=100?'#db3332':totalPct>=80?'#c9b600':'#1fb08f'}">${totalPct}%</b></span>
+        <span class="fac">${t("grandTotal")}</span>
+        <span class="nums">${fmt(totalActual)} / ${fmt(totalCapacity)} ${t("units")} &nbsp; <b style="color:${totalPct>=100?'#db3332':totalPct>=80?'#c9b600':'#1fb08f'}">${totalPct}%</b></span>
       </div>
       <div class="cap-track">
         <div class="cap-fill ${totalCls}" style="width:${totalWidth}%"></div>
       </div>
-      ${numDays>1 ? `<div class="cap-note">Capacity target scaled for ${numDays} selected days</div>` : ``}
+      ${capDates.length>1 ? `<div class="cap-note">${t("capNoteMany",{n:capDates.length})}</div>` : ``}
+      ${RAW_CAPACITY.length && !hasDatedCapacity ? `<div class="cap-note">${t("capNoteDateCol")}</div>` : ``}
     </div>
     <hr class="cap-divider" />
     ${rowsHtml}
     <div class="legend-row" style="margin-top:16px;">
-      <span><i style="background:#1fb08f"></i> Below 80% — capacity available</span>
-      <span><i style="background:#f5e023"></i> 80% to 99% — near maximum</span>
-      <span><i style="background:#db3332"></i> 100% or more — over capacity</span>
+      <span><i style="background:#1fb08f"></i> ${t("capOk")}</span>
+      <span><i style="background:#f5e023"></i> ${t("capWarn")}</span>
+      <span><i style="background:#db3332"></i> ${t("capOver")}</span>
     </div>
   `;
 }
@@ -889,7 +1633,7 @@ function renderTable(data){
 
   const tbody = document.getElementById("tableBody");
   if(!rows.length){
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="11">No matching results</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="12">${t("empty")}</td></tr>`;
     return;
   }
   tbody.innerHTML = rows.map(r=>`
@@ -901,6 +1645,7 @@ function renderTable(data){
       <td><span class="facility-tag">${r.facility}</span></td>
       <td class="qty">${fmt(r.qty)}</td>
       <td><span class="pill received">${r.status}</span></td>
+      <td>${r.accuracy || "—"}</td>
       <td>${r.arrival ?? "—"}</td>
       <td>${r.emp}</td>
       <td>${r.cars}</td>
@@ -921,17 +1666,334 @@ function renderTable(data){
 
 function renderTableOnly(){ renderTable(getFiltered()); }
 
+function deltaClass(curr, prev){
+  if(prev==null || prev===0 && curr===0) return "flat";
+  if(curr>prev) return "up";
+  if(curr<prev) return "down";
+  return "flat";
+}
+function deltaLabel(curr, prev){
+  if(prev==null) return t("cmpNone");
+  const d = curr-prev;
+  if(d===0) return t("cmpNone");
+  return d>0 ? t("deltaUp",{n:fmt(d)}) : t("deltaDown",{n:fmt(d)});
+}
+
+function renderCompare(data){
+  const box = document.getElementById("compareGrid");
+  const {from, to} = getDateBounds();
+  const base = RAW_DATA.filter(nonDateMatch);
+  const currQty = data.reduce((s,r)=>s+r.qty,0);
+  let prevQty = null, weekQty = null, prevLabel = t("cmpPrev"), weekLabel = t("cmpWeek");
+  if(from && to){
+    const days = spanDays(from, to);
+    const prevTo = addDays(from, -1);
+    const prevFrom = addDays(prevTo, 1-days);
+    const weekFrom = addDays(from, -7);
+    const weekTo = addDays(to, -7);
+    prevQty = filterRange(base, prevFrom, prevTo).reduce((s,r)=>s+r.qty,0);
+    weekQty = filterRange(base, weekFrom, weekTo).reduce((s,r)=>s+r.qty,0);
+    prevLabel = `${t("cmpPrev")} (${enDate(prevFrom)} → ${enDate(prevTo)})`;
+    weekLabel = `${t("cmpWeek")} (${enDate(weekFrom)} → ${enDate(weekTo)})`;
+  }
+  const cards = [
+    {lbl:t("cmpNow"), val:currQty, extra:`${fmt(data.length)} ${t("axisReceipts").toLowerCase()}`},
+    {lbl:prevLabel, val:prevQty, extra: prevQty==null ? t("cmpNone") : deltaLabel(currQty, prevQty), cls:deltaClass(currQty, prevQty)},
+    {lbl:weekLabel, val:weekQty, extra: weekQty==null ? t("cmpNone") : deltaLabel(currQty, weekQty), cls:deltaClass(currQty, weekQty)},
+  ];
+  box.innerHTML = cards.map(c=>`
+    <div class="cmp">
+      <div class="lbl">${c.lbl}</div>
+      <div class="val">${c.val==null ? "—" : fmt(c.val)}</div>
+      <div class="delta ${c.cls||"flat"}">${c.extra}</div>
+    </div>
+  `).join("");
+}
+
+function renderQuality(data){
+  const zero = data.filter(r=>!r.qty).length;
+  const noEmp = data.filter(r=>!r.emp).length;
+  const noAsn = data.filter(r=>!r.asn).length;
+  const el = document.getElementById("qualityList");
+  if(!zero && !noEmp && !noAsn){
+    el.innerHTML = `<div class="issue"><span>${t("issueOk")}</span><b>0</b></div>`;
+    return;
+  }
+  el.innerHTML = `
+    <div class="issue"><span>${t("issueZero",{n:fmt(zero)})}</span><b>${fmt(zero)}</b></div>
+    <div class="issue"><span>${t("issueEmp",{n:fmt(noEmp)})}</span><b>${fmt(noEmp)}</b></div>
+    <div class="issue"><span>${t("issueAsn",{n:fmt(noAsn)})}</span><b>${fmt(noAsn)}</b></div>
+  `;
+}
+
+function renderRank(data){
+  const map = {};
+  data.forEach(r=>{
+    const name = r.emp || "—";
+    if(!map[name]) map[name] = {emp:name, receipts:0, qty:0, sku:0};
+    map[name].receipts++;
+    map[name].qty += r.qty;
+    map[name].sku += r.product||0;
+  });
+  const rows = Object.values(map).sort((a,b)=>b.qty-a.qty || b.receipts-a.receipts);
+  const body = document.getElementById("rankBody");
+  if(!rows.length){
+    body.innerHTML = `<tr class="empty-row"><td colspan="5">${t("empty")}</td></tr>`;
+    return;
+  }
+  body.innerHTML = rows.map((r,i)=>`
+    <tr>
+      <td>${i+1}</td>
+      <td>${r.emp}</td>
+      <td>${fmt(r.receipts)}</td>
+      <td class="qty">${fmt(r.qty)}</td>
+      <td>${fmt(r.sku)}</td>
+    </tr>
+  `).join("");
+}
+
+function renderAlerts(data){
+  const stack = document.getElementById("alertStack");
+  const uniqueDates = [...new Set(data.map(r=>r.date))].filter(Boolean).sort();
+  const {from, to} = getDateBounds();
+  const capDates = (from && to && from===to) ? [from] : uniqueDates;
+  const capMap = capacityMapForDates(capDates);
+  const byFac = {};
+  data.forEach(r=>{ byFac[r.facility]=(byFac[r.facility]||0)+r.qty; });
+  const items = [];
+  CAPACITY_ORDER.forEach(fac=>{
+    const cap = capMap[fac]||0;
+    const actual = byFac[fac]||0;
+    if(!cap) return;
+    const pct = Math.round(actual/cap*100);
+    if(pct>=100) items.push(`<div class="alert over">${t("alertOver",{fac,pct})}</div>`);
+    else if(pct>=80) items.push(`<div class="alert warn">${t("alertWarn",{fac,pct})}</div>`);
+  });
+  stack.innerHTML = items.join("");
+}
+
+function renderForecast(data){
+  const box = document.getElementById("forecastBox");
+  const {from, to} = getDateBounds();
+  if(!from || !to || from!==to){
+    box.hidden = false;
+    box.innerHTML = `<b>${t("forecastTitle")}</b><div class="cap-note">${t("forecastNeedDay")}</div>`;
+    return;
+  }
+  const capMap = capacityMapForDates([from]);
+  const totalCap = CAPACITY_ORDER.reduce((s,f)=>s+(capMap[f]||0),0);
+  const qty = data.reduce((s,r)=>s+r.qty,0);
+  const mins = data.map(r=>timeToMinutes(r.arrival)).filter(v=>v!=null);
+  if(!mins.length || !totalCap){
+    box.hidden = false;
+    box.innerHTML = `<b>${t("forecastTitle")}</b><div class="cap-note">${t("forecastNeedDay")}</div>`;
+    return;
+  }
+  const first = Math.min(...mins);
+  const last = Math.max(...mins);
+  const elapsed = Math.max(30, last-first);
+  const endOfDay = 20*60;
+  const remain = Math.max(0, endOfDay-last);
+  const rate = qty / (elapsed/60);
+  const proj = Math.round(qty + rate*(remain/60));
+  const pct = Math.round(proj/totalCap*100);
+  box.hidden = false;
+  box.innerHTML = `<b>${t("forecastTitle")}</b><div style="margin-top:6px">${t("forecastText",{proj:fmt(proj), pct})}</div>`;
+}
+
+function renderAccuracy(data){
+  const canvas = document.getElementById("chartAccuracy");
+  if(!canvas) return;
+  const byAcc = {};
+  data.forEach(r=>{
+    const k = r.accuracy || "—";
+    byAcc[k] = (byAcc[k]||0)+1;
+  });
+  const labels = Object.keys(byAcc);
+  const tc = themeColors();
+  charts.accuracy = new Chart(canvas, {
+    type:"doughnut",
+    data:{
+      labels,
+      datasets:[{
+        data: labels.map(k=>byAcc[k]),
+        backgroundColor: labels.map((_,i)=>COLORS[i%COLORS.length]),
+        borderColor: tc.panel,
+        borderWidth:3,
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      cutout:"60%",
+      plugins:{
+        legend:{position:"bottom", labels:{boxWidth:10, padding:12, font:{size:11}}},
+        tooltip:{callbacks:{label:(c)=>`${c.label}: ${c.parsed}`}}
+      }
+    }
+  });
+}
+
+function exportExcel(){
+  const data = getFiltered();
+  const headers = ["Date","Vendor","RO","ASN","Facility","Quantity","Status","Schedule","Arrival","Employee","Cars","SKU"];
+  const lines = [headers.join(",")];
+  data.forEach(r=>{
+    const cells = [r.date,r.vendor,r.ro,r.asn,r.facility,r.qty,r.status,r.accuracy||"",r.arrival||"",r.emp,r.cars,r.product??""];
+    lines.push(cells.map(v=>{
+      const s = String(v??"");
+      return /[",\n]/.test(s) ? `"${s.replaceAll('"','""')}"` : s;
+    }).join(","));
+  });
+  const blob = new Blob(["\uFEFF"+lines.join("\n")], {type:"text/csv;charset=utf-8"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `inbound-receiving-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function dashboardContext(){
+  const data = (typeof getFiltered==="function") ? getFiltered() : [];
+  const qty = data.reduce((s,r)=>s+r.qty,0);
+  const fac = {};
+  data.forEach(r=>{ fac[r.facility]=(fac[r.facility]||0)+r.qty; });
+  const dates = [...new Set(data.map(r=>r.date))].filter(Boolean).sort();
+  return [
+    `This is the noon minutes inbound receiving dashboard (not shipping).`,
+    `Language: ${currentLang}. Reply in the user's language.`,
+    `Current filter dates: ${dates.join(", ")||"none"}.`,
+    `Receipts: ${data.length}. Quantity received: ${qty}.`,
+    `Quantity by facility: ${JSON.stringify(fac)}.`,
+    `You can answer inbound questions using this snapshot, or any other topic.`
+  ].join("\n");
+}
+
+let chatHistory = [];
+let chatReady = false;
+
+function addChatMsg(role, text, cls){
+  const log = document.getElementById("chatLog");
+  const div = document.createElement("div");
+  div.className = "chat-msg " + (cls || role);
+  div.textContent = text;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+async function askGemini(userText){
+  const contents = [];
+  chatHistory.forEach(m=>{
+    contents.push({role: m.role, parts:[{text:m.text}]});
+  });
+  contents.push({role:"user", parts:[{text:userText}]});
+  const body = {
+    systemInstruction:{ parts:[{ text: dashboardContext() }] },
+    contents
+  };
+  let lastErr = "fail";
+  for(const model of GEMINI_MODELS){
+    try{
+      const key = getChatApiKey();
+      if(!key) throw new Error("missing-key");
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`, {
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify(body)
+      });
+      const json = await res.json();
+      if(!res.ok) throw new Error(json.error?.message || ("HTTP "+res.status));
+      const text = json.candidates?.[0]?.content?.parts?.map(p=>p.text).join("") || "";
+      if(text) return text;
+      lastErr = "empty";
+    }catch(e){
+      lastErr = e.message || String(e);
+    }
+  }
+  throw new Error(lastErr);
+}
+
+function initChat(){
+  const panel = document.getElementById("chatPanel");
+  const fab = document.getElementById("chatFab");
+  const form = document.getElementById("chatForm");
+  const input = document.getElementById("chatInput");
+  const send = document.getElementById("chatSend");
+  if(!panel || chatReady) return;
+  chatReady = true;
+  addChatMsg("bot", t("chatHello"));
+  const keyForm = document.getElementById("chatKeyForm");
+  const keyInput = document.getElementById("chatKeyInput");
+  if(getChatApiKey()) keyForm.style.display = "none";
+  keyForm.addEventListener("submit", (e)=>{
+    e.preventDefault();
+    const key = keyInput.value.trim();
+    if(!key) return;
+    try{ localStorage.setItem(CHAT_KEY_STORE, key); }catch(err){}
+    keyInput.value = "";
+    keyForm.style.display = "none";
+    addChatMsg("bot", t("chatHello"));
+  });
+  fab.addEventListener("click", ()=>{
+    panel.classList.toggle("open");
+    if(panel.classList.contains("open")) input.focus();
+  });
+  document.getElementById("chatClose").addEventListener("click", ()=>panel.classList.remove("open"));
+  form.addEventListener("submit", async (e)=>{
+    e.preventDefault();
+    const text = input.value.trim();
+    if(!text) return;
+    if(!getChatApiKey()){
+      addChatMsg("bot", t("chatNeedKey"), "err");
+      keyForm.style.display = "flex";
+      return;
+    }
+    input.value = "";
+    addChatMsg("user", text);
+    chatHistory.push({role:"user", text});
+    send.disabled = true;
+    addChatMsg("bot", t("chatBusy"), "bot");
+    const pending = document.getElementById("chatLog").lastElementChild;
+    try{
+      const reply = await askGemini(text);
+      pending.textContent = reply;
+      chatHistory.push({role:"model", text:reply});
+      if(chatHistory.length>16) chatHistory = chatHistory.slice(-16);
+    }catch(err){
+      pending.className = "chat-msg err";
+      pending.textContent = t("chatFail");
+      chatHistory.pop();
+    }
+    send.disabled = false;
+  });
+  input.addEventListener("keydown", (e)=>{
+    if(e.key==="Enter" && !e.shiftKey){
+      e.preventDefault();
+      form.requestSubmit();
+    }
+  });
+}
+
 // ===================== MASTER RENDER =====================
 function render(){
   const data = getFiltered();
   renderKPIs(data);
+  renderAlerts(data);
+  renderCompare(data);
+  renderQuality(data);
+  renderRank(data);
   renderCapacity(data);
+  renderForecast(data);
   renderCharts(data);
+  renderAccuracy(data);
   renderTable(data);
 }
 
 // ===================== BOOTSTRAP =====================
+initLang();
+initTheme();
+applyStaticI18n();
 initFilterEvents();
+initChat();
 loadData();
 setInterval(loadData, AUTO_REFRESH_MS);
 window.addEventListener("focus", loadData);
