@@ -495,8 +495,8 @@
   </div>
   <div class="chat-log" id="chatLog"></div>
   <form class="chat-form" id="chatKeyForm" style="display:none">
-    <textarea id="chatKeyInput" rows="1"></textarea>
-    <button type="submit">Save key</button>
+    <textarea id="chatKeyInput" data-i18n-placeholder="chatKeyPh" placeholder="Paste new Gemini API key" rows="1"></textarea>
+    <button type="submit" data-i18n="chatKeySave">Save key</button>
   </form>
   <form class="chat-form" id="chatForm">
     <textarea id="chatInput" data-i18n-placeholder="chatPh" placeholder="Ask anything..." rows="1"></textarea>
@@ -514,8 +514,8 @@ const CAPACITY_CSV_URLS = [
   `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${CAPACITY_GID}`,
 ];
 const AUTO_REFRESH_MS = 120000; // 2 minutes
-const GEMINI_API_KEY = "AQ.Ab8RN6IZI9rOpsQoJkFewRencE3DZT-ZbKce1gsJTsIaVIVf7g";
-const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-1.5-flash"];
+const GEMINI_API_KEY = "AQ.Ab8RN6KKDZg_IhwXCUhXfZj4tHGS6ZrcScDHAQvXSrTKbkyXew";
+const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-3.7-flash", "gemini-2.0-flash-lite"];
 function getChatApiKey(){ return GEMINI_API_KEY; }
 
 const I18N = {
@@ -597,6 +597,7 @@ const I18N = {
     chatHello:"Hi — I can answer inbound receiving questions or anything else you need.",
     chatBusy:"Thinking...",
     chatFail:"Could not get a reply. Check the API key and try again.",
+    chatKey401:"This API key was blocked (401). Create a new key in Google AI Studio and paste it below. Do not put the new key on public GitHub.",
     chatKeyPh:"Paste Gemini API key",
     chatKeySave:"Save key",
     chatNeedKey:"Save your Gemini API key first. It stays on this browser only.",
@@ -713,6 +714,7 @@ const I18N = {
     chatHello:"أهلاً — أقدر أجاوب على أسئلة استلام inbound أو أي سؤال تاني.",
     chatBusy:"بفكّر...",
     chatFail:"ماقدرتش أرد. راجع الـ API key وجرب تاني.",
+    chatKey401:"المفتاح اتقفل (401) غالبًا لأنه اتنشر. اعمل مفتاح جديد من Google AI Studio والصقه تحت. ما تحطش المفتاح الجديد على GitHub العام.",
     chatKeyPh:"لصِق Gemini API key",
     chatKeySave:"حفظ المفتاح",
     chatNeedKey:"احفظ Gemini API key أولاً. بيتخزن على المتصفح ده فقط.",
@@ -1881,53 +1883,65 @@ function addChatMsg(role, text, cls){
   log.scrollTop = log.scrollHeight;
 }
 
+function parseGeminiError(json, status){
+  const err = json && json.error;
+  if(!err) return "HTTP "+status;
+  const reason = err.details && err.details[0] && (err.details[0].reason || err.details[0].errorType);
+  return [err.status, err.message, reason].filter(Boolean).join(" — ");
+}
+
 async function askGemini(userText){
   const key = getChatApiKey();
   if(!key) throw new Error("missing-key");
-  const contents = [];
-  chatHistory.forEach(m=>{
-    contents.push({role: m.role, parts:[{text:m.text}]});
-  });
-  contents.push({role:"user", parts:[{text:userText}]});
-  const payloads = [
-    { systemInstruction:{ parts:[{ text: dashboardContext() }] }, contents },
-    { contents: [{role:"user", parts:[{text: dashboardContext()+"\n\nUser: "+userText}]}] }
+  try{
+    const proxy = await fetch("/api/chat", {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({
+        message: userText,
+        context: dashboardContext(),
+        history: chatHistory
+      })
+    });
+    if(proxy.ok){
+      const data = await proxy.json();
+      if(data && data.text) return data.text;
+    }
+  }catch(e){}
+  const contents = [
+    ...chatHistory.map(m=>({role:m.role, parts:[{text:m.text}]})),
+    {role:"user", parts:[{text:userText}]}
   ];
+  const body = {
+    systemInstruction:{ parts:[{ text: dashboardContext() }] },
+    contents
+  };
   let lastErr = "fail";
   for(const model of GEMINI_MODELS){
-    for(const body of payloads){
-      try{
-        const res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/"+model+":generateContent", {
-          method:"POST",
-          headers:{ "Content-Type":"application/json", "x-goog-api-key": key },
-          body: JSON.stringify(body)
-        });
-        const json = await res.json().catch(()=>({}));
-        if(!res.ok) throw new Error(json.error?.message || ("HTTP "+res.status));
-        const text = (json.candidates?.[0]?.content?.parts||[]).map(p=>p.text).filter(Boolean).join("\n");
-        if(text) return text;
-        lastErr = "empty response";
-      }catch(e){
-        lastErr = e.message || String(e);
-      }
+    try{
+      const res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/"+model+":generateContent", {
+        method:"POST",
+        headers:{ "Content-Type":"application/json", "x-goog-api-key": key },
+        body: JSON.stringify(body)
+      });
+      const json = await res.json().catch(()=>({}));
+      if(!res.ok) throw new Error(parseGeminiError(json, res.status));
+      const text = (json.candidates?.[0]?.content?.parts||[]).map(p=>p.text).filter(Boolean).join("\n");
+      if(text) return text;
+      lastErr = "empty response";
+    }catch(e){
+      lastErr = e.message || String(e);
     }
   }
   try{
-    const res = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+    const res = await fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
       method:"POST",
-      headers:{ "Content-Type":"application/json", "Authorization":"Bearer "+key },
-      body: JSON.stringify({
-        model:"gemini-2.5-flash",
-        messages:[
-          {role:"system", content: dashboardContext()},
-          ...chatHistory.map(m=>({role:m.role==="model"?"assistant":"user", content:m.text})),
-          {role:"user", content:userText}
-        ]
-      })
+      headers:{ "Content-Type":"application/json", "x-goog-api-key": key },
+      body: JSON.stringify({ model:"gemini-2.5-flash", input: dashboardContext()+"\n\n"+userText })
     });
     const json = await res.json().catch(()=>({}));
-    if(!res.ok) throw new Error(json.error?.message || json.error || ("HTTP "+res.status));
-    const text = json.choices?.[0]?.message?.content || "";
+    if(!res.ok) throw new Error(parseGeminiError(json, res.status));
+    const text = json.output?.[0]?.content?.[0]?.text || json.output_text || "";
     if(text) return text;
   }catch(e){
     lastErr = e.message || String(e);
@@ -1945,7 +1959,18 @@ function initChat(){
   chatReady = true;
   addChatMsg("bot", t("chatHello"));
   const keyForm = document.getElementById("chatKeyForm");
-  if(keyForm) keyForm.style.display = "none";
+  const keyInput = document.getElementById("chatKeyInput");
+  if(keyForm){
+    keyForm.addEventListener("submit", (e)=>{
+      e.preventDefault();
+      const next = (keyInput.value||"").trim();
+      if(!next) return;
+      try{ localStorage.setItem("inbound-gemini-key", next); }catch(err){}
+      keyInput.value = "";
+      keyForm.style.display = "none";
+      addChatMsg("bot", t("chatHello"));
+    });
+  }
   fab.addEventListener("click", ()=>{
     panel.classList.toggle("open");
     if(panel.classList.contains("open")) input.focus();
@@ -1973,7 +1998,9 @@ function initChat(){
       if(chatHistory.length>16) chatHistory = chatHistory.slice(-16);
     }catch(err){
       pending.className = "chat-msg err";
-      pending.textContent = t("chatFail") + (err && err.message ? "\n" + err.message : "");
+      const msg = (err && err.message) || "";
+      pending.textContent = (msg.includes("401") || /UNAUTHENTICATED|blocked|leaked/i.test(msg) ? t("chatKey401") : t("chatFail")) + "\n" + msg;
+      if(keyForm) keyForm.style.display = "flex";
       chatHistory.pop();
     }
     send.disabled = false;
