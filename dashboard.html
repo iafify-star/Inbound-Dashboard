@@ -250,44 +250,6 @@
   .forecast-box{margin-top:14px;padding:12px;border:1px dashed var(--border);border-radius:12px;background:var(--panel-2);}
   .forecast-box b{color:var(--black);}
 
-  .chat-fab{
-    position:fixed;inset-inline-end:22px;bottom:22px;z-index:40;
-    width:58px;height:58px;border:none;border-radius:50%;cursor:pointer;
-    background:var(--yellow);color:var(--ink);font-size:24px;font-weight:900;
-    box-shadow:0 8px 24px rgba(0,0,0,.22);
-  }
-  .chat-panel{
-    position:fixed;inset-inline-end:22px;bottom:90px;z-index:40;
-    width:min(380px,calc(100vw - 24px));height:min(520px,calc(100vh - 130px));
-    background:var(--panel);border:1px solid var(--border);border-radius:18px;
-    box-shadow:0 16px 40px rgba(0,0,0,.22);display:none;flex-direction:column;overflow:hidden;
-  }
-  .chat-panel.open{display:flex;}
-  .chat-head{
-    display:flex;justify-content:space-between;align-items:center;gap:10px;
-    padding:12px 14px;background:var(--ink);color:#fff;
-  }
-  .chat-head b{font-size:14px;}
-  .chat-head span{display:block;font-size:11px;opacity:.75;font-weight:500;}
-  .chat-close{
-    background:transparent;border:0;color:#fff;font-size:20px;cursor:pointer;line-height:1;
-  }
-  .chat-log{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:8px;}
-  .chat-msg{max-width:88%;padding:9px 11px;border-radius:12px;font-size:13px;line-height:1.5;white-space:pre-wrap;word-spacing:normal;letter-spacing:normal;}
-  .chat-head b,.chat-head span{letter-spacing:normal;word-spacing:normal;}
-  .chat-msg.user{align-self:flex-end;background:var(--yellow);color:var(--ink);}
-  .chat-msg.bot{align-self:flex-start;background:var(--panel-2);border:1px solid var(--border);color:var(--text);}
-  .chat-msg.err{align-self:flex-start;background:rgba(219,51,50,.1);color:var(--red);border:1px solid rgba(219,51,50,.3);}
-  .chat-form{display:flex;gap:8px;padding:10px;border-top:1px solid var(--border);}
-  .chat-form textarea{
-    flex:1;resize:none;min-height:40px;max-height:90px;border:1px solid var(--border);
-    border-radius:10px;padding:8px 10px;font:inherit;background:var(--panel-2);color:var(--text);
-  }
-  .chat-form button{
-    background:var(--yellow);border:0;border-radius:10px;padding:0 14px;font-weight:800;cursor:pointer;color:var(--ink);
-  }
-  .chat-form button:disabled{opacity:.5;cursor:default;}
-
   @media (max-width:900px){
     .compare-grid{grid-template-columns:1fr;}
     .brand h1{font-size:18px;}
@@ -298,7 +260,7 @@
   }
   @media print{
     body{background:#fff;color:#111;}
-    .filters,.top-meta button,.search,.btn-ghost,.btn-theme,.btn-lang,.btn-refresh,.mobile-hint,.chat-fab,.chat-panel{display:none !important;}
+    .filters,.top-meta button,.search,.btn-ghost,.btn-theme,.btn-lang,.btn-refresh,.mobile-hint{display:none !important;}
     .panel,.kpi,.cmp{break-inside:avoid;box-shadow:none;}
     .chart-box,.chart-box.tall{height:220px;}
   }
@@ -484,26 +446,6 @@
   <footer data-i18n="footer">Live inbound receiving dashboard from Google Sheets — noon minutes inbound team</footer>
 </div>
 
-<button class="chat-fab" id="chatFab" type="button" aria-label="Open chat">💬</button>
-<div class="chat-panel" id="chatPanel">
-  <div class="chat-head">
-    <div>
-      <b data-i18n="chatTitle">Inbound assistant</b>
-      <span data-i18n="chatSub">Ask about receiving, capacity, or anything else</span>
-    </div>
-    <button class="chat-close" id="chatClose" type="button" aria-label="Close">×</button>
-  </div>
-  <div class="chat-log" id="chatLog"></div>
-  <form class="chat-form" id="chatKeyForm" style="display:none">
-    <textarea id="chatKeyInput" data-i18n-placeholder="chatKeyPh" placeholder="Paste new Gemini API key" rows="1"></textarea>
-    <button type="submit" data-i18n="chatKeySave">Save key</button>
-  </form>
-  <form class="chat-form" id="chatForm">
-    <textarea id="chatInput" data-i18n-placeholder="chatPh" placeholder="Ask anything..." rows="1"></textarea>
-    <button type="submit" id="chatSend" data-i18n="chatSend">Send</button>
-  </form>
-</div>
-
 <script>
 // ===================== CONFIG =====================
 const SHEET_ID = "1D1HKYe0wjCb0sroYOgdkYLfcrkdNSWKKIYDaD6D9_Ns";
@@ -514,9 +456,6 @@ const CAPACITY_CSV_URLS = [
   `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${CAPACITY_GID}`,
 ];
 const AUTO_REFRESH_MS = 120000; // 2 minutes
-const GEMINI_API_KEY = "AQ.Ab8RN6KKDZg_IhwXCUhXfZj4tHGS6ZrcScDHAQvXSrTKbkyXew";
-const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-3.7-flash", "gemini-2.0-flash-lite"];
-function getChatApiKey(){ return GEMINI_API_KEY; }
 
 const I18N = {
   en:{
@@ -590,17 +529,6 @@ const I18N = {
     tooltipQty:"Quantity received: {n} units",
     tooltipShare:"{label}: {n} receipts",
     hourlySeries:"Inbound receipts",
-    chatTitle:"Inbound assistant",
-    chatSub:"Ask about receiving, capacity, or anything else",
-    chatPh:"Ask anything...",
-    chatSend:"Send",
-    chatHello:"Hi — I can answer inbound receiving questions or anything else you need.",
-    chatBusy:"Thinking...",
-    chatFail:"Could not get a reply. Check the API key and try again.",
-    chatKey401:"This API key was blocked (401). Create a new key in Google AI Studio and paste it below. Do not put the new key on public GitHub.",
-    chatKeyPh:"Paste Gemini API key",
-    chatKeySave:"Save key",
-    chatNeedKey:"Save your Gemini API key first. It stays on this browser only.",
     dateFrom:"From date",
     dateTo:"To date",
     copyLink:"Copy link",
@@ -707,17 +635,6 @@ const I18N = {
     tooltipQty:"الكمية المستلمة: {n} وحدة",
     tooltipShare:"{label}: {n} استلام",
     hourlySeries:"استلامات inbound",
-    chatTitle:"مساعد inbound",
-    chatSub:"اسأل عن الاستلام أو الكابسيتي أو أي حاجة تانية",
-    chatPh:"اسأل عن أي حاجة...",
-    chatSend:"إرسال",
-    chatHello:"أهلاً — أقدر أجاوب على أسئلة استلام inbound أو أي سؤال تاني.",
-    chatBusy:"بفكّر...",
-    chatFail:"ماقدرتش أرد. راجع الـ API key وجرب تاني.",
-    chatKey401:"المفتاح اتقفل (401) غالبًا لأنه اتنشر. اعمل مفتاح جديد من Google AI Studio والصقه تحت. ما تحطش المفتاح الجديد على GitHub العام.",
-    chatKeyPh:"لصِق Gemini API key",
-    chatKeySave:"حفظ المفتاح",
-    chatNeedKey:"احفظ Gemini API key أولاً. بيتخزن على المتصفح ده فقط.",
     dateFrom:"من تاريخ",
     dateTo:"إلى تاريخ",
     copyLink:"نسخ الرابط",
@@ -1855,164 +1772,6 @@ function exportExcel(){
   URL.revokeObjectURL(a.href);
 }
 
-function dashboardContext(){
-  const data = (typeof getFiltered==="function") ? getFiltered() : [];
-  const qty = data.reduce((s,r)=>s+r.qty,0);
-  const fac = {};
-  data.forEach(r=>{ fac[r.facility]=(fac[r.facility]||0)+r.qty; });
-  const dates = [...new Set(data.map(r=>r.date))].filter(Boolean).sort();
-  return [
-    `This is the noon minutes inbound receiving dashboard (not shipping).`,
-    `Language: ${currentLang}. Reply in the user's language.`,
-    `Current filter dates: ${dates.join(", ")||"none"}.`,
-    `Receipts: ${data.length}. Quantity received: ${qty}.`,
-    `Quantity by facility: ${JSON.stringify(fac)}.`,
-    `You can answer inbound questions using this snapshot, or any other topic.`
-  ].join("\n");
-}
-
-let chatHistory = [];
-let chatReady = false;
-
-function addChatMsg(role, text, cls){
-  const log = document.getElementById("chatLog");
-  const div = document.createElement("div");
-  div.className = "chat-msg " + (cls || role);
-  div.textContent = text;
-  log.appendChild(div);
-  log.scrollTop = log.scrollHeight;
-}
-
-function parseGeminiError(json, status){
-  const err = json && json.error;
-  if(!err) return "HTTP "+status;
-  const reason = err.details && err.details[0] && (err.details[0].reason || err.details[0].errorType);
-  return [err.status, err.message, reason].filter(Boolean).join(" — ");
-}
-
-async function askGemini(userText){
-  const key = getChatApiKey();
-  if(!key) throw new Error("missing-key");
-  try{
-    const proxy = await fetch("/api/chat", {
-      method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({
-        message: userText,
-        context: dashboardContext(),
-        history: chatHistory
-      })
-    });
-    if(proxy.ok){
-      const data = await proxy.json();
-      if(data && data.text) return data.text;
-    }
-  }catch(e){}
-  const contents = [
-    ...chatHistory.map(m=>({role:m.role, parts:[{text:m.text}]})),
-    {role:"user", parts:[{text:userText}]}
-  ];
-  const body = {
-    systemInstruction:{ parts:[{ text: dashboardContext() }] },
-    contents
-  };
-  let lastErr = "fail";
-  for(const model of GEMINI_MODELS){
-    try{
-      const res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/"+model+":generateContent", {
-        method:"POST",
-        headers:{ "Content-Type":"application/json", "x-goog-api-key": key },
-        body: JSON.stringify(body)
-      });
-      const json = await res.json().catch(()=>({}));
-      if(!res.ok) throw new Error(parseGeminiError(json, res.status));
-      const text = (json.candidates?.[0]?.content?.parts||[]).map(p=>p.text).filter(Boolean).join("\n");
-      if(text) return text;
-      lastErr = "empty response";
-    }catch(e){
-      lastErr = e.message || String(e);
-    }
-  }
-  try{
-    const res = await fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
-      method:"POST",
-      headers:{ "Content-Type":"application/json", "x-goog-api-key": key },
-      body: JSON.stringify({ model:"gemini-2.5-flash", input: dashboardContext()+"\n\n"+userText })
-    });
-    const json = await res.json().catch(()=>({}));
-    if(!res.ok) throw new Error(parseGeminiError(json, res.status));
-    const text = json.output?.[0]?.content?.[0]?.text || json.output_text || "";
-    if(text) return text;
-  }catch(e){
-    lastErr = e.message || String(e);
-  }
-  throw new Error(lastErr);
-}
-
-function initChat(){
-  const panel = document.getElementById("chatPanel");
-  const fab = document.getElementById("chatFab");
-  const form = document.getElementById("chatForm");
-  const input = document.getElementById("chatInput");
-  const send = document.getElementById("chatSend");
-  if(!panel || chatReady) return;
-  chatReady = true;
-  addChatMsg("bot", t("chatHello"));
-  const keyForm = document.getElementById("chatKeyForm");
-  const keyInput = document.getElementById("chatKeyInput");
-  if(keyForm){
-    keyForm.addEventListener("submit", (e)=>{
-      e.preventDefault();
-      const next = (keyInput.value||"").trim();
-      if(!next) return;
-      try{ localStorage.setItem("inbound-gemini-key", next); }catch(err){}
-      keyInput.value = "";
-      keyForm.style.display = "none";
-      addChatMsg("bot", t("chatHello"));
-    });
-  }
-  fab.addEventListener("click", ()=>{
-    panel.classList.toggle("open");
-    if(panel.classList.contains("open")) input.focus();
-  });
-  document.getElementById("chatClose").addEventListener("click", ()=>panel.classList.remove("open"));
-  form.addEventListener("submit", async (e)=>{
-    e.preventDefault();
-    const text = input.value.trim();
-    if(!text) return;
-    if(!getChatApiKey()){
-      addChatMsg("bot", t("chatNeedKey"), "err");
-      keyForm.style.display = "flex";
-      return;
-    }
-    input.value = "";
-    addChatMsg("user", text);
-    chatHistory.push({role:"user", text});
-    send.disabled = true;
-    addChatMsg("bot", t("chatBusy"), "bot");
-    const pending = document.getElementById("chatLog").lastElementChild;
-    try{
-      const reply = await askGemini(text);
-      pending.textContent = reply;
-      chatHistory.push({role:"model", text:reply});
-      if(chatHistory.length>16) chatHistory = chatHistory.slice(-16);
-    }catch(err){
-      pending.className = "chat-msg err";
-      const msg = (err && err.message) || "";
-      pending.textContent = (msg.includes("401") || /UNAUTHENTICATED|blocked|leaked/i.test(msg) ? t("chatKey401") : t("chatFail")) + "\n" + msg;
-      if(keyForm) keyForm.style.display = "flex";
-      chatHistory.pop();
-    }
-    send.disabled = false;
-  });
-  input.addEventListener("keydown", (e)=>{
-    if(e.key==="Enter" && !e.shiftKey){
-      e.preventDefault();
-      form.requestSubmit();
-    }
-  });
-}
-
 // ===================== MASTER RENDER =====================
 function render(){
   const data = getFiltered();
@@ -2033,7 +1792,6 @@ initLang();
 initTheme();
 applyStaticI18n();
 initFilterEvents();
-initChat();
 loadData();
 setInterval(loadData, AUTO_REFRESH_MS);
 window.addEventListener("focus", loadData);
