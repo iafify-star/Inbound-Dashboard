@@ -133,6 +133,39 @@
     transition:.15s;font-weight:600;
   }
   .filters .reset:hover{border-color:var(--red);color:var(--red);}
+  .date-chips{display:flex;flex-wrap:wrap;gap:8px;width:100%;margin-bottom:4px;}
+  .date-chips button,.chip{
+    border:1px solid var(--border);background:var(--panel-2);color:var(--text);
+    border-radius:999px;padding:7px 12px;font-size:12px;font-weight:700;
+    font-family:inherit;cursor:pointer;
+  }
+  .date-chips button.active{background:var(--yellow);border-color:var(--yellow-dark);color:var(--ink);}
+  .chip-bar{display:flex;flex-wrap:wrap;gap:8px;margin:-8px 0 16px;}
+  .chip-bar:empty{display:none;}
+  .chip{display:inline-flex;align-items:center;gap:6px;}
+  .chip b{font-weight:800;}
+  .chip .x{border:0;background:transparent;color:var(--muted);cursor:pointer;font-weight:900;padding:0 2px;}
+  .clickable{cursor:pointer;}
+  .clickable:hover{text-decoration:underline;}
+  tr.clickable:hover{background:rgba(245,224,35,.18);}
+
+  .floor{margin-bottom:16px;}
+  .floor-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;}
+  .floor-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0;}
+  .floor-stat{background:var(--panel-2);border:1px solid var(--border);border-radius:12px;padding:12px;}
+  .floor-stat .k{font-size:11px;color:var(--muted);font-weight:700;}
+  .floor-stat .v{font-size:20px;font-weight:900;margin-top:4px;}
+  .floor-stat .s{font-size:11px;color:var(--muted);margin-top:4px;}
+  .floor-list{display:flex;flex-direction:column;gap:8px;}
+  .floor-row{
+    display:grid;grid-template-columns:90px 1fr 110px 90px 80px;
+    gap:8px;align-items:center;padding:8px 10px;border:1px solid var(--border);
+    border-radius:10px;background:var(--panel-2);font-size:12px;cursor:pointer;
+  }
+  .floor-row:hover{border-color:var(--yellow-dark);}
+  .issue{cursor:pointer;}
+  .issue:hover{border-color:var(--yellow-dark);}
+  .issue.active{border-color:var(--red);background:rgba(219,51,50,.08);}
 
   /* KPI cards */
   .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px;}
@@ -256,6 +289,12 @@
   .btn-ghost:hover{border-color:var(--yellow-dark);}
   .forecast-box{margin-top:14px;padding:12px;border:1px dashed var(--border);border-radius:12px;background:var(--panel-2);}
   .forecast-box b{color:var(--black);}
+  .pager{display:flex;justify-content:center;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px;font-size:13px;color:var(--muted);}
+  .pager button{
+    border:1px solid var(--border);background:var(--panel);color:var(--text);
+    border-radius:999px;padding:7px 14px;font-weight:700;font-family:inherit;cursor:pointer;
+  }
+  .pager button:disabled{opacity:.45;cursor:default;}
 
   @media (max-width:900px){
     .wrap{padding:14px 12px 36px;padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right));}
@@ -275,6 +314,9 @@
       width:100%;min-width:0;font-size:16px;
     }
     .filters .reset{width:100%;align-self:stretch;}
+    .date-chips button{flex:1 1 calc(50% - 8px);}
+    .floor-stats{grid-template-columns:1fr 1fr;}
+    .floor-row{grid-template-columns:1fr 1fr; }
     .kpis{grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
     .kpi{padding:12px;}
     .kpi .value{font-size:20px;}
@@ -305,7 +347,7 @@
   }
   @media print{
     body{background:#fff;color:#111;}
-    .filters,.top-meta button,.search,.btn-ghost,.btn-theme,.btn-lang,.btn-refresh,.mobile-hint{display:none !important;}
+    .filters,.top-meta button,.search,.btn-ghost,.btn-theme,.btn-lang,.btn-refresh,.mobile-hint,.date-chips,.chip-bar,.pager{display:none !important;}
     .panel,.kpi,.cmp{break-inside:avoid;box-shadow:none;}
     .chart-box,.chart-box.tall{height:220px;}
   }
@@ -341,6 +383,13 @@
   <div class="alert-stack" id="alertStack"></div>
 
   <div class="filters">
+    <!-- اختصارات التاريخ: النهارده / امبارح / الأسبوع. بتغيّر القائمتين تحت -->
+    <div class="date-chips" id="dateChips">
+      <button type="button" data-range="today" data-i18n="chipToday">Today</button>
+      <button type="button" data-range="yesterday" data-i18n="chipYesterday">Yesterday</button>
+      <button type="button" data-range="week" data-i18n="chipWeek">This week</button>
+      <button type="button" data-range="all" data-i18n="chipAll">All dates</button>
+    </div>
     <div class="field">
       <label data-i18n="dateFrom">From date</label>
       <select id="fDateFrom"><option value="">All dates</option></select>
@@ -367,6 +416,18 @@
     </div>
     <button class="reset" id="btnReset" data-i18n="reset">↺ Reset filters</button>
   </div>
+  <div class="chip-bar" id="filterChips"></div>
+
+  <div class="panel floor" id="floorPanel">
+    <div class="floor-head">
+      <div>
+        <h3 data-i18n="floorTitle">Live shift floor</h3>
+        <p class="desc" id="floorDesc" data-i18n="floorDesc">Latest receiving activity for the current shift day</p>
+      </div>
+    </div>
+    <div class="floor-stats" id="floorStats"></div>
+    <div class="floor-list" id="floorList"></div>
+  </div>
 
   <div class="kpis">
     <div class="kpi c1"><span class="icon">📥</span><div class="label" data-i18n="kpiReceipts">Total receipts (ASNs)</div><div class="value" id="kpiShipments">0</div><div class="sub" data-i18n="kpiReceiptsSub">Inbound ASNs received</div></div>
@@ -385,8 +446,28 @@
     </div>
     <div class="panel">
       <h3 data-i18n="qualityTitle">Receiving data quality</h3>
-      <p class="desc" data-i18n="qualityDesc">ASNs with missing employee, zero quantity, or missing ASN</p>
+      <p class="desc" data-i18n="qualityDesc">Tap an issue to open the exception inbox</p>
       <div class="issue-list" id="qualityList"></div>
+    </div>
+  </div>
+
+  <div class="panel" id="exceptionPanel" hidden>
+    <h3 data-i18n="exTitle">Exception inbox</h3>
+    <p class="desc" id="exceptionDesc" data-i18n="exDesc">Rows that need a data fix</p>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th data-i18n="thDate">Date</th>
+            <th data-i18n="thVendor">Vendor</th>
+            <th data-i18n="thAsn">ASN</th>
+            <th data-i18n="thFacility">Facility</th>
+            <th data-i18n="thQty">Quantity</th>
+            <th data-i18n="thEmp">Employee</th>
+          </tr>
+        </thead>
+        <tbody id="exceptionBody"></tbody>
+      </table>
     </div>
   </div>
 
@@ -460,7 +541,7 @@
     <div class="table-head">
       <div>
         <h3 style="margin-bottom:4px;" data-i18n="tableTitle">Detailed receiving log</h3>
-        <p class="desc" style="margin:0;" data-i18n="tableDesc">Click a column header to sort</p>
+        <p class="desc" style="margin:0;" data-i18n="tableDesc">Click vendor, facility, or employee to filter</p>
       </div>
       <input class="search" id="tableSearch" data-i18n-placeholder="tableSearch" placeholder="🔍 Quick search in table..." />
     </div>
@@ -486,9 +567,9 @@
         <tbody id="tableBody"></tbody>
       </table>
     </div>
+    <div class="pager" id="tablePager" hidden></div>
   </div>
 
-  <footer data-i18n="footer">Live inbound receiving dashboard from Google Sheets — noon minutes inbound team</footer>
   <p class="designer-credit">Designed by Ibrahim Afify</p>
 </div>
 
@@ -623,6 +704,35 @@ const I18N = {
     forecastNeedDay:"Select a single day to see the end-of-day forecast.",
     sheetError:"Could not refresh the live receiving sheet. The dashboard stays up on the last loaded data.",
     noAcc:"No schedule-accuracy values in this view",
+    chipToday:"Today",
+    chipYesterday:"Yesterday",
+    chipWeek:"This week",
+    chipAll:"All dates",
+    floorTitle:"Live shift floor",
+    floorDesc:"Latest receiving activity for the current shift day",
+    floorShift:"Shift day: {date}",
+    floorLatest:"Using latest sheet day ({date}) — no rows for today yet",
+    floorReceived:"Received",
+    floorProgress:"In progress",
+    floorLast:"Last receipt",
+    floorHot:"Active facility",
+    floorNone:"No receipts on this shift day",
+    justNow:"Just now",
+    minsAgo:"{n} min ago",
+    hoursAgo:"{n}h ago",
+    chipFacility:"Facility: {n}",
+    chipEmp:"Employee: {n}",
+    chipVendor:"Vendor: {n}",
+    chipStatus:"Status: {n}",
+    exTitle:"Exception inbox",
+    exDesc:"Tap a quality issue to list the rows",
+    exZero:"Zero-quantity receipts",
+    exEmp:"Receipts missing an employee",
+    exAsn:"Receipts missing an ASN",
+    clickFilter:"Click to filter the dashboard",
+    prevPage:"Previous",
+    nextPage:"Next",
+    tablePage:"Showing {from}–{to} of {n}",
   },
   ar:{
     title:"لوحة استلام inbound | noon minutes",
@@ -731,6 +841,35 @@ const I18N = {
     forecastNeedDay:"اختَر يومًا واحدًا لعرض توقع نهاية اليوم.",
     sheetError:"تعذر تحديث شيت الاستلام. الموقع مستمر على آخر بيانات اتحمّلت.",
     noAcc:"لا توجد قيم لدقة الجدول في هذا العرض",
+    chipToday:"النهارده",
+    chipYesterday:"امبارح",
+    chipWeek:"الأسبوع",
+    chipAll:"كل التواريخ",
+    floorTitle:"أرضية الوردية",
+    floorDesc:"آخر حركة استلام في يوم الوردية",
+    floorShift:"يوم الوردية: {date}",
+    floorLatest:"أحدث يوم في الشيت ({date}) — مفيش صفوف للنهارده لسه",
+    floorReceived:"تم الاستلام",
+    floorProgress:"قيد الاستلام",
+    floorLast:"آخر استلام",
+    floorHot:"المستودع النشط",
+    floorNone:"مفيش استلامات في يوم الوردية",
+    justNow:"الآن",
+    minsAgo:"منذ {n} د",
+    hoursAgo:"منذ {n} س",
+    chipFacility:"المستودع: {n}",
+    chipEmp:"الموظف: {n}",
+    chipVendor:"المورد: {n}",
+    chipStatus:"الحالة: {n}",
+    exTitle:"صندوق الاستثناءات",
+    exDesc:"اضغط مشكلة الجودة عشان تشوف الصفوف",
+    exZero:"استلامات بكمية صفر",
+    exEmp:"استلامات من غير موظف",
+    exAsn:"استلامات من غير ASN",
+    clickFilter:"اضغط للفلترة",
+    prevPage:"السابق",
+    nextPage:"التالي",
+    tablePage:"عرض {from}–{to} من {n}",
   }
 };
 
@@ -949,6 +1088,37 @@ let RAW_CAPACITY = [];
 let charts = {};
 let sortState = {key:"arrival", dir:1};
 let datesInitialized = false;
+let vendorFilter = "";
+let exceptionType = "";
+let lastChartKey = "";
+let lastSnapHash = "";
+const TABLE_PAGE_SIZE = 50;
+let tablePage = 0;
+const SNAP_CACHE_KEY = "inbound-last-snap";
+
+function snapHash(receipts, capacity){
+  const r = (receipts||[]).map(x => [x.date,x.asn,x.qty,x.status,x.facility,x.emp,x.arrival].join("|")).join(";");
+  const c = (capacity||[]).map(x => [x.date,x.facility,x.capacity].join("|")).join(";");
+  return r + "#" + c;
+}
+
+function saveSnapCache(snap){
+  try{
+    localStorage.setItem(SNAP_CACHE_KEY, JSON.stringify({
+      savedAt: Date.now(),
+      receipts: snap.receipts,
+      capacity: snap.capacity || []
+    }));
+  }catch(e){}
+}
+
+function readSnapCache(){
+  try{
+    const raw = JSON.parse(localStorage.getItem(SNAP_CACHE_KEY) || "null");
+    if(raw && Array.isArray(raw.receipts) && raw.receipts.length) return raw;
+  }catch(e){}
+  return null;
+}
 
 // ===================== LIVE DATA LOADING =====================
 // pick: يلاقي عمود الشيت حتى لو الاسم فيه مسافات أو اختلاف حروف
@@ -1149,6 +1319,8 @@ async function loadData(){
     if(!snap.receipts.length) throw new Error("No inbound rows from sheet");
     RAW_DATA = snap.receipts;
     if(snap.capacity && snap.capacity.length) RAW_CAPACITY = snap.capacity;
+    lastSnapHash = snapHash(RAW_DATA, RAW_CAPACITY);
+    saveSnapCache(snap);
     applyBackendSettings(snap.settings);
     const badge = snap.source === "mock" ? "mock" : snap.source === "firebase" ? "firebase" : "live";
     setLiveBadge(badge);
@@ -1156,10 +1328,18 @@ async function loadData(){
     if(errBox) errBox.hidden = true;
   }catch(err){
     console.warn("Live sheet refresh failed; keeping the dashboard up:", err);
-    if(!RAW_DATA.length) RAW_DATA = FALLBACK_DATA;
+    if(!RAW_DATA.length){
+      const cached = readSnapCache();
+      if(cached){
+        RAW_DATA = cached.receipts;
+        RAW_CAPACITY = cached.capacity || [];
+      }else{
+        RAW_DATA = FALLBACK_DATA;
+      }
+    }
     setLiveBadge("cached");
     const errBox = el("sheetError");
-    if(errBox && !hadData){
+    if(errBox && !hadData && !readSnapCache()){
       errBox.hidden = false;
       errBox.textContent = t("sheetError");
     }
@@ -1181,7 +1361,7 @@ async function loadData(){
 // ===================== FILTERS =====================
 // فلتر جديد: ضيف <select id="..."> في HTML فوق، بعدين on("id","change",onFiltersChanged)
 // وشروطه جوّه nonDateMatch أو getDateBounds
-function rebuildSelect(selectEl, values, allLabel, formatFn){
+function rebuildSelect(selectEl, values, allLabel, formatFn, allowExtra){
   if(!selectEl) return "";
   const prev = selectEl.value;
   selectEl.innerHTML = "";
@@ -1193,22 +1373,43 @@ function rebuildSelect(selectEl, values, allLabel, formatFn){
     o.value = v; o.textContent = formatFn ? formatFn(v) : v;
     selectEl.appendChild(o);
   });
-  if(values.includes(prev) || prev===""){ selectEl.value = prev; }
-  else { selectEl.value = ""; }
+  const canKeepExtra = prev && !values.includes(prev) && (!allowExtra || allowExtra(prev));
+  if(canKeepExtra){
+    const extra = document.createElement("option");
+    extra.value = prev;
+    extra.textContent = formatFn ? formatFn(prev) : prev;
+    selectEl.appendChild(extra);
+    selectEl.value = prev;
+  }else if(values.includes(prev) || prev===""){
+    selectEl.value = prev;
+  }else{
+    selectEl.value = "";
+  }
   return prev;
+}
+
+function sheetDates(){
+  return [...new Set(RAW_DATA.map(r=>r.date))].filter(Boolean).sort();
+}
+
+function datesInWeek(){
+  const today = todayYmd();
+  const start = addDays(today, -6);
+  return sheetDates().filter(d => d>=start && d<=today);
 }
 
 function populateFilterOptions(){
   const facilities = unique(RAW_DATA,"facility");
   const emps = unique(RAW_DATA,"emp");
   const statuses = unique(RAW_DATA,"status");
-  const dates = [...new Set(RAW_DATA.map(r=>r.date))].filter(Boolean).sort().reverse();
+  const dates = sheetDates().slice().reverse();
 
   rebuildSelect(document.getElementById("fFacility"), facilities, t("all"));
   rebuildSelect(document.getElementById("fEmp"), emps, t("all"));
   rebuildSelect(document.getElementById("fStatus"), statuses, t("all"));
-  rebuildSelect(document.getElementById("fDateFrom"), dates, t("allDates"), enDate);
-  rebuildSelect(document.getElementById("fDateTo"), dates, t("allDates"), enDate);
+  const chipDay = iso => iso===todayYmd() || iso===addDays(todayYmd(),-1);
+  rebuildSelect(document.getElementById("fDateFrom"), dates, t("allDates"), enDate, chipDay);
+  rebuildSelect(document.getElementById("fDateTo"), dates, t("allDates"), enDate, chipDay);
 }
 
 function readPrefs(){
@@ -1220,17 +1421,19 @@ function applyInitialFilters(){
   datesInitialized = true;
   const params = new URLSearchParams(location.search);
   const prefs = readPrefs();
-  const dates = [...new Set(RAW_DATA.map(r=>r.date))].filter(Boolean).sort();
+  const dates = sheetDates();
   const latest = dates[dates.length-1] || "";
   const one = params.get("date") || "";
-  const from = params.get("from") || one || prefs.from || latest;
-  const to = params.get("to") || one || prefs.to || latest;
+  let from = params.get("from") || one || prefs.from || latest;
+  let to = params.get("to") || one || prefs.to || latest;
+  if(from && !dates.includes(from)) from = latest;
+  if(to && !dates.includes(to)) to = latest;
   const fac = params.get("facility") || prefs.facility || "";
   const fromEl = el("fDateFrom");
   const toEl = el("fDateTo");
   const facEl = el("fFacility");
-  if(from && fromEl) fromEl.value = from;
-  if(to && toEl) toEl.value = to;
+  if(from && fromEl){ ensureDateOption(fromEl, from); fromEl.value = from; }
+  if(to && toEl){ ensureDateOption(toEl, to); toEl.value = to; }
   if(fac && facEl && [...facEl.options].some(o=>o.value===fac)) facEl.value = fac;
 }
 
@@ -1256,6 +1459,91 @@ function getDateBounds(){
   return {from, to};
 }
 
+function todayYmd(){
+  const n = new Date();
+  return ymd(n.getFullYear(), n.getMonth()+1, n.getDate());
+}
+
+function ensureDateOption(selectEl, iso){
+  if(!selectEl || !iso) return;
+  if([...selectEl.options].some(o=>o.value===iso)) return;
+  const o = document.createElement("option");
+  o.value = iso;
+  o.textContent = enDate(iso);
+  selectEl.appendChild(o);
+}
+
+function applyDateChip(range){
+  const today = todayYmd();
+  let from = "", to = "";
+  if(range==="today"){ from = to = today; }
+  else if(range==="yesterday"){ from = to = addDays(today, -1); }
+  else if(range==="week"){
+    const week = datesInWeek();
+    if(week.length){ from = week[0]; to = week[week.length-1]; }
+  }
+  // اليوم/امبارح ممكن ميبانوش في الشيت — نضيفهم للاختيار فقط، مش كل أيام الأسبوع الفاضية
+  if((range==="today" || range==="yesterday") && from){
+    ensureDateOption(el("fDateFrom"), from);
+    ensureDateOption(el("fDateTo"), to);
+  }
+  if(el("fDateFrom")) el("fDateFrom").value = from;
+  if(el("fDateTo")) el("fDateTo").value = to;
+  onFiltersChanged();
+}
+
+function syncDateChips(){
+  const {from, to} = getDateBounds();
+  const today = todayYmd();
+  const week = datesInWeek();
+  let range = "all";
+  if(from===today && to===today) range = "today";
+  else if(from===addDays(today,-1) && to===addDays(today,-1)) range = "yesterday";
+  else if(week.length && from===week[0] && to===week[week.length-1]) range = "week";
+  document.querySelectorAll("#dateChips [data-range]").forEach(btn=>{
+    btn.classList.toggle("active", btn.dataset.range===range);
+  });
+}
+
+function applyClickFilter(kind, value){
+  if(!value) return;
+  if(kind==="facility" && el("fFacility")) el("fFacility").value = value;
+  if(kind==="emp" && el("fEmp")) el("fEmp").value = value;
+  if(kind==="status" && el("fStatus")) el("fStatus").value = value;
+  if(kind==="vendor"){
+    vendorFilter = value;
+    if(el("fSearch")) el("fSearch").value = "";
+  }
+  onFiltersChanged();
+  const table = el("tableBody");
+  if(table) table.scrollIntoView({behavior:"smooth", block:"start"});
+}
+
+function clearClickFilter(kind){
+  if(kind==="facility" && el("fFacility")) el("fFacility").value = "";
+  if(kind==="emp" && el("fEmp")) el("fEmp").value = "";
+  if(kind==="status" && el("fStatus")) el("fStatus").value = "";
+  if(kind==="vendor") vendorFilter = "";
+  if(kind==="issue") exceptionType = "";
+  onFiltersChanged();
+}
+
+function renderFilterChips(){
+  const bar = el("filterChips");
+  if(!bar) return;
+  const chips = [];
+  const fac = (el("fFacility") && el("fFacility").value) || "";
+  const emp = (el("fEmp") && el("fEmp").value) || "";
+  const status = (el("fStatus") && el("fStatus").value) || "";
+  if(fac) chips.push({kind:"facility", text:t("chipFacility",{n:fac})});
+  if(emp) chips.push({kind:"emp", text:t("chipEmp",{n:emp})});
+  if(status) chips.push({kind:"status", text:t("chipStatus",{n:status})});
+  if(vendorFilter) chips.push({kind:"vendor", text:t("chipVendor",{n:vendorFilter})});
+  bar.innerHTML = chips.map(c=>`
+    <span class="chip">${escapeHtml(c.text)} <button class="x" type="button" data-clear="${c.kind}" aria-label="clear">×</button></span>
+  `).join("");
+}
+
 function nonDateMatch(r){
   const facility = (el("fFacility") && el("fFacility").value) || "";
   const emp = (el("fEmp") && el("fEmp").value) || "";
@@ -1264,6 +1552,7 @@ function nonDateMatch(r){
   if(facility && r.facility!==facility) return false;
   if(emp && r.emp!==emp) return false;
   if(status && r.status!==status) return false;
+  if(vendorFilter && r.vendor!==vendorFilter) return false;
   if(search){
     const hay = (r.vendor+" "+r.asn+" "+r.ro).toLowerCase();
     if(!hay.includes(search)) return false;
@@ -1275,6 +1564,7 @@ function onFiltersChanged(){
   const {from, to} = getDateBounds();
   if(el("fDateFrom")) el("fDateFrom").value = from;
   if(el("fDateTo")) el("fDateTo").value = to;
+  tablePage = 0;
   syncUrl();
   render();
 }
@@ -1282,13 +1572,38 @@ function onFiltersChanged(){
 function initFilterEvents(){
   ["fFacility","fEmp","fStatus","fDateFrom","fDateTo"].forEach(id=>on(id, "change", onFiltersChanged));
   on("fSearch", "input", render);
-  on("tableSearch", "input", renderTableOnly);
+  on("tableSearch", "input", ()=>{ tablePage = 0; renderTableOnly(); });
   on("btnReset", "click", ()=>{
     ["fFacility","fEmp","fStatus","fDateFrom","fDateTo","fSearch","tableSearch"].forEach(id=>{
       if(el(id)) el(id).value = "";
     });
+    vendorFilter = "";
+    exceptionType = "";
     onFiltersChanged();
   });
+  const wrap = document.querySelector(".wrap");
+  if(wrap && !wrap.dataset.opsBound){
+    wrap.dataset.opsBound = "1";
+    wrap.addEventListener("click", e=>{
+      const rangeBtn = e.target.closest("[data-range]");
+      if(rangeBtn){ applyDateChip(rangeBtn.dataset.range); return; }
+      const clearBtn = e.target.closest("[data-clear]");
+      if(clearBtn){ clearClickFilter(clearBtn.dataset.clear); return; }
+      const issueBtn = e.target.closest("[data-issue]");
+      if(issueBtn){ openExceptions(issueBtn.dataset.issue); return; }
+      const fac = e.target.closest("[data-filter-fac]");
+      if(fac){ applyClickFilter("facility", fac.dataset.filterFac); return; }
+      const empBtn = e.target.closest("[data-filter-emp]");
+      if(empBtn){ applyClickFilter("emp", empBtn.dataset.filterEmp); return; }
+      const vendorBtn = e.target.closest("[data-filter-vendor]");
+      if(vendorBtn){ applyClickFilter("vendor", vendorBtn.dataset.filterVendor); return; }
+      const pageBtn = e.target.closest("[data-page-step]");
+      if(pageBtn && !pageBtn.disabled){
+        tablePage += Number(pageBtn.dataset.pageStep || 0);
+        renderTableOnly();
+      }
+    });
+  }
   on("btnRefresh", "click", loadData);
   on("btnExport", "click", exportExcel);
   on("btnPrint", "click", ()=>window.print());
@@ -1344,6 +1659,64 @@ function filterRange(rows, from, to){
     if(to && r.date > to) return false;
     return true;
   });
+}
+
+function arrivalAgo(dateIso, arrival){
+  const mins = timeToMinutes(arrival);
+  if(mins==null) return arrival || "—";
+  if(dateIso !== todayYmd()) return arrival;
+  const now = new Date();
+  const diff = (now.getHours()*60 + now.getMinutes()) - mins;
+  if(diff < 1) return t("justNow");
+  if(diff < 60) return t("minsAgo",{n:diff});
+  return t("hoursAgo",{n:Math.floor(diff/60)});
+}
+
+function shiftDate(){
+  const dates = [...new Set(RAW_DATA.map(r=>r.date))].filter(Boolean).sort();
+  const today = todayYmd();
+  if(dates.includes(today)) return {date:today, latest:false};
+  return {date: dates[dates.length-1] || "", latest:true};
+}
+
+// أرضية الوردية: آخر حركة، Received vs In Progress، آخر ASN، المستودع النشط
+function renderFloor(){
+  const stats = el("floorStats");
+  const list = el("floorList");
+  const desc = el("floorDesc");
+  if(!stats || !list) return;
+  const shift = shiftDate();
+  const rows = RAW_DATA.filter(r=>r.date===shift.date);
+  if(desc){
+    desc.textContent = shift.date
+      ? (shift.latest && shift.date!==todayYmd() ? t("floorLatest",{date:enDate(shift.date)}) : t("floorShift",{date:enDate(shift.date)}))
+      : t("floorNone");
+  }
+  const received = rows.filter(r=>/received/i.test(r.status)).length;
+  const progress = rows.length - received;
+  const sorted = [...rows].sort((a,b)=>(timeToMinutes(b.arrival)??-1)-(timeToMinutes(a.arrival)??-1));
+  const last = sorted[0];
+  const hot = Object.entries(rows.reduce((m,r)=>{ m[r.facility]=(m[r.facility]||0)+1; return m; }, {}))
+    .sort((a,b)=>b[1]-a[1])[0];
+  stats.innerHTML = `
+    <div class="floor-stat"><div class="k">${t("floorReceived")}</div><div class="v">${fmt(received)}</div></div>
+    <div class="floor-stat"><div class="k">${t("floorProgress")}</div><div class="v">${fmt(progress)}</div></div>
+    <div class="floor-stat"><div class="k">${t("floorLast")}</div><div class="v">${last ? escapeHtml(arrivalAgo(last.date, last.arrival)) : "—"}</div><div class="s">${last ? escapeHtml(last.vendor) : ""}</div></div>
+    <div class="floor-stat"><div class="k">${t("floorHot")}</div><div class="v">${hot ? escapeHtml(hot[0]) : "—"}</div><div class="s">${hot ? t("tooltipReceipts",{n:hot[1]}) : ""}</div></div>
+  `;
+  if(!sorted.length){
+    list.innerHTML = `<div class="cap-note">${t("floorNone")}</div>`;
+    return;
+  }
+  list.innerHTML = sorted.slice(0,5).map(r=>`
+    <div class="floor-row" data-filter-vendor="${escapeHtml(r.vendor)}" title="${t("clickFilter")}">
+      <span>${escapeHtml(r.arrival || "—")}</span>
+      <span>${escapeHtml(r.vendor)}</span>
+      <span class="clickable" data-filter-fac="${escapeHtml(r.facility)}">${escapeHtml(r.facility)}</span>
+      <span class="qty">${fmt(r.qty)}</span>
+      <span>${escapeHtml(r.status)}</span>
+    </div>
+  `).join("");
 }
 
 // ===================== KPIs =====================
@@ -1416,7 +1789,20 @@ function initTheme(){
 
 // شارت جديد: <canvas id="chartX"> في HTML + charts.x = new Chart(...) هنا
 // لو Chart.js مش محمّل، الدالة تخرج والدashboard يفضل شغال
+function chartViewKey(data){
+  const theme = document.documentElement.getAttribute("data-theme") || "light";
+  const {from, to} = getDateBounds();
+  const fac = (el("fFacility") && el("fFacility").value) || "";
+  const emp = (el("fEmp") && el("fEmp").value) || "";
+  const status = (el("fStatus") && el("fStatus").value) || "";
+  const core = (data||[]).map(r => [r.date,r.asn,r.qty,r.facility,r.emp,r.vendor,r.status].join("|")).join(";");
+  return [theme, currentLang, from, to, fac, emp, status, vendorFilter, core].join("::");
+}
+
 function renderCharts(data){
+  const key = chartViewKey(data);
+  if(key === lastChartKey && charts.facilityQty && charts.accuracy) return;
+  lastChartKey = key;
   destroyCharts();
   if(typeof Chart === "undefined") return;
   applyChartDefaults();
@@ -1456,6 +1842,10 @@ function renderCharts(data){
     },
     options:{
       responsive:true, maintainAspectRatio:false,
+      onClick:(_e, els, chart)=>{
+        if(!els.length) return;
+        applyClickFilter("facility", chart.data.labels[els[0].index]);
+      },
       plugins:{ legend:{display:false},
         tooltip:{ callbacks:{ label:(c)=>fmt(c.parsed.y)+" "+t("units") } } },
       scales:{
@@ -1479,6 +1869,10 @@ function renderCharts(data){
     options:{
       responsive:true, maintainAspectRatio:false,
       cutout:"62%",
+      onClick:(_e, els, chart)=>{
+        if(!els.length) return;
+        applyClickFilter("facility", chart.data.labels[els[0].index]);
+      },
       plugins:{
         legend:{ position:"bottom", labels:{boxWidth:10, padding:14, font:{size:11}} },
         tooltip:{ callbacks:{ label:(c)=>t("tooltipShare",{label:c.label, n:c.parsed}) } }
@@ -1511,6 +1905,10 @@ function renderCharts(data){
     options:{
       indexAxis:"y",
       responsive:true, maintainAspectRatio:false,
+      onClick:(_e, els)=>{
+        if(!els.length) return;
+        applyClickFilter("vendor", topVendorsQty[els[0].index][0]);
+      },
       plugins:{ legend:{display:false},
         tooltip:{ callbacks:{ label:(c)=>fmt(c.parsed.x)+" "+t("units") } } },
       scales:{
@@ -1535,6 +1933,10 @@ function renderCharts(data){
     options:{
       indexAxis:"y",
       responsive:true, maintainAspectRatio:false,
+      onClick:(_e, els)=>{
+        if(!els.length) return;
+        applyClickFilter("vendor", topVendorsSku[els[0].index][0]);
+      },
       plugins:{ legend:{display:false},
         tooltip:{ callbacks:{ label:(c)=>fmt(c.parsed.x)+" "+t("skuCount") } } },
       scales:{
@@ -1578,6 +1980,10 @@ function renderCharts(data){
     },
     options:{
       responsive:true, maintainAspectRatio:false,
+      onClick:(_e, els, chart)=>{
+        if(!els.length) return;
+        applyClickFilter("emp", chart.data.labels[els[0].index]);
+      },
       plugins:{
         legend:{position:"bottom", labels:{boxWidth:10, font:{size:11}}},
         tooltip:{ callbacks:{ label:(c)=> c.dataset.yAxisID==="y1"
@@ -1719,20 +2125,25 @@ function renderTable(data){
   if(!tbody) return;
   if(!rows.length){
     tbody.innerHTML = `<tr class="empty-row"><td colspan="12">${t("empty")}</td></tr>`;
+    renderPager(0);
     return;
   }
-  tbody.innerHTML = rows.map(r=>`
+  const pages = Math.max(1, Math.ceil(rows.length / TABLE_PAGE_SIZE));
+  if(tablePage >= pages) tablePage = pages - 1;
+  if(tablePage < 0) tablePage = 0;
+  const pageRows = rows.slice(tablePage * TABLE_PAGE_SIZE, (tablePage + 1) * TABLE_PAGE_SIZE);
+  tbody.innerHTML = pageRows.map(r=>`
     <tr>
       <td>${escapeHtml(enDate(r.date))}</td>
-      <td>${escapeHtml(r.vendor)}</td>
+      <td class="clickable" data-filter-vendor="${escapeHtml(r.vendor)}" title="${t("clickFilter")}">${escapeHtml(r.vendor)}</td>
       <td class="mono">${escapeHtml(r.ro)}</td>
       <td class="mono">${escapeHtml(r.asn)}</td>
-      <td><span class="facility-tag">${escapeHtml(r.facility)}</span></td>
+      <td><span class="facility-tag clickable" data-filter-fac="${escapeHtml(r.facility)}" title="${t("clickFilter")}">${escapeHtml(r.facility)}</span></td>
       <td class="qty">${fmt(r.qty)}</td>
       <td><span class="pill received">${escapeHtml(r.status)}</span></td>
       <td>${escapeHtml(r.accuracy || "—")}</td>
       <td>${escapeHtml(r.arrival ?? "—")}</td>
-      <td>${escapeHtml(r.emp)}</td>
+      <td class="clickable" data-filter-emp="${escapeHtml(r.emp)}" title="${t("clickFilter")}">${escapeHtml(r.emp)}</td>
       <td>${escapeHtml(r.cars)}</td>
       <td>${escapeHtml(r.product ?? "—")}</td>
     </tr>
@@ -1747,6 +2158,26 @@ function renderTable(data){
       th.appendChild(span);
     }
   });
+  renderPager(rows.length);
+}
+
+function renderPager(total){
+  const box = el("tablePager");
+  if(!box) return;
+  if(total <= TABLE_PAGE_SIZE){
+    box.hidden = true;
+    box.innerHTML = "";
+    return;
+  }
+  const pages = Math.ceil(total / TABLE_PAGE_SIZE);
+  const from = tablePage * TABLE_PAGE_SIZE + 1;
+  const to = Math.min(total, (tablePage + 1) * TABLE_PAGE_SIZE);
+  box.hidden = false;
+  box.innerHTML = `
+    <button type="button" data-page-step="-1" ${tablePage<=0?"disabled":""}>${t("prevPage")}</button>
+    <span>${t("tablePage",{from, to, n:total})}</span>
+    <button type="button" data-page-step="1" ${tablePage>=pages-1?"disabled":""}>${t("nextPage")}</button>
+  `;
 }
 
 function renderTableOnly(){ renderTable(getFiltered()); }
@@ -1796,20 +2227,63 @@ function renderCompare(data){
   `).join("");
 }
 
+function issueRows(data, type){
+  if(type==="zero") return data.filter(r=>!r.qty);
+  if(type==="emp") return data.filter(r=>!r.emp);
+  if(type==="asn") return data.filter(r=>!r.asn);
+  return [];
+}
+
+function openExceptions(type){
+  exceptionType = exceptionType===type ? "" : type;
+  const data = getFiltered();
+  renderQuality(data);
+  renderExceptions(data);
+  const box = el("exceptionPanel");
+  if(box && exceptionType) box.scrollIntoView({behavior:"smooth", block:"start"});
+}
+
+function renderExceptions(data){
+  const box = el("exceptionPanel");
+  const body = el("exceptionBody");
+  const desc = el("exceptionDesc");
+  if(!box || !body) return;
+  const rows = issueRows(data, exceptionType);
+  box.hidden = !exceptionType;
+  if(!exceptionType) return;
+  const titleKey = exceptionType==="zero" ? "exZero" : exceptionType==="emp" ? "exEmp" : "exAsn";
+  if(desc) desc.textContent = `${t(titleKey)} — ${fmt(rows.length)}`;
+  if(!rows.length){
+    body.innerHTML = `<tr class="empty-row"><td colspan="6">${t("empty")}</td></tr>`;
+    return;
+  }
+  body.innerHTML = rows.map(r=>`
+    <tr>
+      <td>${escapeHtml(enDate(r.date))}</td>
+      <td class="clickable" data-filter-vendor="${escapeHtml(r.vendor)}">${escapeHtml(r.vendor)}</td>
+      <td class="mono">${escapeHtml(r.asn || "—")}</td>
+      <td class="clickable" data-filter-fac="${escapeHtml(r.facility)}">${escapeHtml(r.facility)}</td>
+      <td class="qty">${fmt(r.qty)}</td>
+      <td class="clickable" data-filter-emp="${escapeHtml(r.emp)}">${escapeHtml(r.emp || "—")}</td>
+    </tr>
+  `).join("");
+}
+
 function renderQuality(data){
-  const zero = data.filter(r=>!r.qty).length;
-  const noEmp = data.filter(r=>!r.emp).length;
-  const noAsn = data.filter(r=>!r.asn).length;
+  const zero = issueRows(data,"zero").length;
+  const noEmp = issueRows(data,"emp").length;
+  const noAsn = issueRows(data,"asn").length;
   const list = el("qualityList");
   if(!list) return;
   if(!zero && !noEmp && !noAsn){
+    exceptionType = "";
     list.innerHTML = `<div class="issue"><span>${t("issueOk")}</span><b>0</b></div>`;
     return;
   }
   list.innerHTML = `
-    <div class="issue"><span>${t("issueZero",{n:fmt(zero)})}</span><b>${fmt(zero)}</b></div>
-    <div class="issue"><span>${t("issueEmp",{n:fmt(noEmp)})}</span><b>${fmt(noEmp)}</b></div>
-    <div class="issue"><span>${t("issueAsn",{n:fmt(noAsn)})}</span><b>${fmt(noAsn)}</b></div>
+    <div class="issue ${exceptionType==="zero"?"active":""}" data-issue="zero"><span>${t("issueZero",{n:fmt(zero)})}</span><b>${fmt(zero)}</b></div>
+    <div class="issue ${exceptionType==="emp"?"active":""}" data-issue="emp"><span>${t("issueEmp",{n:fmt(noEmp)})}</span><b>${fmt(noEmp)}</b></div>
+    <div class="issue ${exceptionType==="asn"?"active":""}" data-issue="asn"><span>${t("issueAsn",{n:fmt(noAsn)})}</span><b>${fmt(noAsn)}</b></div>
   `;
 }
 
@@ -1830,7 +2304,7 @@ function renderRank(data){
     return;
   }
   body.innerHTML = rows.map((r,i)=>`
-    <tr>
+    <tr class="clickable" data-filter-emp="${escapeHtml(r.emp)}" title="${t("clickFilter")}">
       <td>${i+1}</td>
       <td>${escapeHtml(r.emp)}</td>
       <td>${fmt(r.receipts)}</td>
@@ -1894,6 +2368,7 @@ function renderForecast(data){
 function renderAccuracy(data){
   const canvas = el("chartAccuracy");
   if(!canvas || typeof Chart === "undefined") return;
+  if(charts.accuracy && lastChartKey === chartViewKey(data)) return;
   const byAcc = {};
   data.forEach(r=>{
     const k = r.accuracy || "—";
@@ -1948,10 +2423,14 @@ function exportExcel(){
 function render(){
   try{
     const data = getFiltered();
+    syncDateChips();
+    renderFilterChips();
+    renderFloor();
     renderKPIs(data);
     renderAlerts(data);
     renderCompare(data);
     renderQuality(data);
+    renderExceptions(data);
     renderRank(data);
     renderCapacity(data);
     renderForecast(data);
