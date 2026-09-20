@@ -1,0 +1,1206 @@
+{
+    "generated":  "2026-09-20 17:54",
+    "asnGot":  29,
+    "asnNeed":  48,
+    "qty":  35837,
+    "ro":  105784,
+    "vendorsGot":  22,
+    "vendorsNeed":  33,
+    "sku":  453,
+    "cars":  30,
+    "pending":  [
+                    {
+                        "vendor":  "Dakahlia Slaughterhouse Company",
+                        "asn":  "A06143553PN",
+                        "ro":  "473914766534184",
+                        "facility":  "CAIID01",
+                        "status":  "Open",
+                        "arrival":  "",
+                        "emp":  "",
+                        "totalRo":  400,
+                        "qty":  0,
+                        "sku":  0
+                    },
+                    {
+                        "vendor":  "Ideal for Food Industries",
+                        "asn":  "A06091842PN",
+                        "ro":  "473914963815918",
+                        "facility":  "CAIID01",
+                        "status":  "Open",
+                        "arrival":  "",
+                        "emp":  "",
+                        "totalRo":  144,
+                        "qty":  0,
+                        "sku":  0
+                    },
+                    {
+                        "vendor":  "Ideal for Food Industries",
+                        "asn":  "A06117479PN",
+                        "ro":  "473914084822718",
+                        "facility":  "CAIID01",
+                        "status":  "Open",
+                        "arrival":  "",
+                        "emp":  "",
+                        "totalRo":  96,
+                        "qty":  0,
+                        "sku":  0
+                    },
+                    {
+                        "vendor":  "Ideal for Food Industries",
+                        "asn":  "A06143507PN",
+                        "ro":  "473914287438232",
+                        "facility":  "CAIID01",
+                        "status":  "Open",
+                        "arrival":  "",
+                        "emp":  "",
+                        "totalRo":  108,
+                        "qty":  0,
+                        "sku":  0
+                    },
+                    {
+                        "vendor":  "International Agricultural Manufacturing Projects (BEYTI)",
+                        "asn":  "A06143505PN",
+                        "ro":  "473914864271748",
+                        "facility":  "CAIID01",
+                        "status":  "Open",
+                        "arrival":  "",
+                        "emp":  "",
+                        "totalRo":  5085,
+                        "qty":  0,
+                        "sku":  0
+                    },
+                    {
+                        "vendor":  "International Agricultural Manufacturing Projects (BEYTI)",
+                        "asn":  "A06161139PN",
+                        "ro":  "473914050062622",
+                        "facility":  "CAIID01",
+                        "status":  "Open",
+                        "arrival":  "",
+                        "emp":  "",
+                        "totalRo":  2630,
+                        "qty":  0,
+                        "sku":  0
+                    },
+                    {
+                        "vendor":  "Kellogg Tolaram Noodles Egypt",
+                        "asn":  "A06161143PN",
+                        "ro":  "473914271642063",
+                        "facility":  "CAIID01",
+                        "status":  "Open",
+                        "arrival":  "",
+                        "emp":  "",
+                        "totalRo":  909,
+                        "qty":  0,
+                        "sku":  0
+                    },
+                    {
+                        "vendor":  "Nestle Egypt",
+                        "asn":  "A06176833PN",
+                        "ro":  "473914684572975",
+                        "facility":  "CAIID01",
+                        "status":  "Open",
+                        "arrival":  "",
+                        "emp":  "",
+                        "totalRo":  968,
+                        "qty":  0,
+                        "sku":  0
+                    },
+                    {
+                        "vendor":  "The Coca Cola Bottling Co of Egypt",
+                        "asn":  "A06091822PN",
+                        "ro":  "473914950830294",
+                        "facility":  "CAIID01",
+                        "status":  "Open",
+                        "arrival":  "",
+                        "emp":  "",
+                        "totalRo":  19333,
+                        "qty":  0,
+                        "sku":  0
+                    },
+                    {
+                        "vendor":  "شركة بيبسي كولا مصر",
+                        "asn":  "A06117505PN",
+                        "ro":  "473914090104670",
+                        "facility":  "CAIID01",
+                        "status":  "Open",
+                        "arrival":  "",
+                        "emp":  "",
+                        "totalRo":  13956,
+                        "qty":  0,
+                        "sku":  0
+                    },
+                    {
+                        "vendor":  "شركة مايتى فودز للمنتجات الغذائية - Mighty Foods",
+                        "asn":  "A06065809PN",
+                        "ro":  "473914573953172",
+                        "facility":  "CAIID01",
+                        "status":  "Open",
+                        "arrival":  "",
+                        "emp":  "",
+                        "totalRo":  822,
+                        "qty":  0,
+                        "sku":  0
+                    },
+                    {
+                        "vendor":  "شركة مايتى فودز للمنتجات الغذائية - Mighty Foods",
+                        "asn":  "A06160057PN",
+                        "ro":  "473914923411208",
+                        "facility":  "CAIID01",
+                        "status":  "Open",
+                        "arrival":  "",
+                        "emp":  "",
+                        "totalRo":  1706,
+                        "qty":  0,
+                        "sku":  0
+                    },
+                    {
+                        "vendor":  "شركة مايتى فودز للمنتجات الغذائية - Mighty Foods",
+                        "asn":  "A06160071PN",
+                        "ro":  "473914865780105",
+                        "facility":  "CAIID01",
+                        "status":  "Open",
+                        "arrival":  "",
+                        "emp":  "",
+                        "totalRo":  576,
+                        "qty":  0,
+                        "sku":  0
+                    },
+                    {
+                        "vendor":  "ميمكو للمشروبات والاغذيه",
+                        "asn":  "A06117468PN",
+                        "ro":  "473914163376462",
+                        "facility":  "CAIID01",
+                        "status":  "Open",
+                        "arrival":  "",
+                        "emp":  "",
+                        "totalRo":  462,
+                        "qty":  0,
+                        "sku":  0
+                    },
+                    {
+                        "vendor":  "ميمكو للمشروبات والاغذيه",
+                        "asn":  "A06143501PN",
+                        "ro":  "473914280916521",
+                        "facility":  "CAIID01",
+                        "status":  "Open",
+                        "arrival":  "",
+                        "emp":  "",
+                        "totalRo":  618,
+                        "qty":  0,
+                        "sku":  0
+                    },
+                    {
+                        "vendor":  "شركة الإسكندرية للحلويات والشيكولاته (كورونا)",
+                        "asn":  "A06173290PN",
+                        "ro":  "473914436979585",
+                        "facility":  "CAIID03+04",
+                        "status":  "Open",
+                        "arrival":  "",
+                        "emp":  "",
+                        "totalRo":  2172,
+                        "qty":  0,
+                        "sku":  0
+                    },
+                    {
+                        "vendor":  "الأصدقاء لصناعة المخبوزات",
+                        "asn":  "A06176714PN",
+                        "ro":  "473914225927609",
+                        "facility":  "CAIID06",
+                        "status":  "Open",
+                        "arrival":  "",
+                        "emp":  "",
+                        "totalRo":  221,
+                        "qty":  0,
+                        "sku":  0
+                    },
+                    {
+                        "vendor":  "الأصدقاء الصناعة وتجارة منتجات الالبان",
+                        "asn":  "A06176707PN",
+                        "ro":  "473914889078153",
+                        "facility":  "CAIID07",
+                        "status":  "Open",
+                        "arrival":  "",
+                        "emp":  "",
+                        "totalRo":  436,
+                        "qty":  0,
+                        "sku":  0
+                    },
+                    {
+                        "vendor":  "الواحة فريش فودز",
+                        "asn":  "A06176708PN",
+                        "ro":  "473914424092374",
+                        "facility":  "CAIID07",
+                        "status":  "Open",
+                        "arrival":  "",
+                        "emp":  "",
+                        "totalRo":  37,
+                        "qty":  0,
+                        "sku":  0
+                    }
+                ],
+    "facilities":  [
+                       {
+                           "facility":  "CAIID01",
+                           "qty":  29377,
+                           "ro":  94667,
+                           "sku":  234,
+                           "asn":  29,
+                           "received":  14,
+                           "capacity":  58100,
+                           "capPct":  51
+                       },
+                       {
+                           "facility":  "CAIID02",
+                           "qty":  360,
+                           "ro":  360,
+                           "sku":  15,
+                           "asn":  1,
+                           "received":  1,
+                           "capacity":  1500,
+                           "capPct":  24
+                       },
+                       {
+                           "facility":  "CAIID03+04",
+                           "qty":  0,
+                           "ro":  2172,
+                           "sku":  0,
+                           "asn":  1,
+                           "received":  0,
+                           "capacity":  7000,
+                           "capPct":  0
+                       },
+                       {
+                           "facility":  "CAIID05",
+                           "qty":  1306,
+                           "ro":  1772,
+                           "sku":  11,
+                           "asn":  2,
+                           "received":  2,
+                           "capacity":  7400,
+                           "capPct":  18
+                       },
+                       {
+                           "facility":  "CAIID06",
+                           "qty":  837,
+                           "ro":  1275,
+                           "sku":  15,
+                           "asn":  3,
+                           "received":  2,
+                           "capacity":  5700,
+                           "capPct":  15
+                       },
+                       {
+                           "facility":  "CAIID07",
+                           "qty":  3957,
+                           "ro":  5538,
+                           "sku":  178,
+                           "asn":  12,
+                           "received":  10,
+                           "capacity":  7400,
+                           "capPct":  53
+                       }
+                   ],
+    "employees":  [
+                      {
+                          "name":  "Abdelwhab",
+                          "qty":  9835,
+                          "sku":  52,
+                          "asns":  5
+                      },
+                      {
+                          "name":  "Mahmoud Walid",
+                          "qty":  5668,
+                          "sku":  33,
+                          "asns":  1
+                      },
+                      {
+                          "name":  "Mohamed Safwat",
+                          "qty":  8453,
+                          "sku":  96,
+                          "asns":  6
+                      },
+                      {
+                          "name":  "Hazem Mohammed",
+                          "qty":  737,
+                          "sku":  36,
+                          "asns":  2
+                      },
+                      {
+                          "name":  "Mohamed Fathy",
+                          "qty":  120,
+                          "sku":  6,
+                          "asns":  1
+                      },
+                      {
+                          "name":  "Ahmed Samy",
+                          "qty":  2209,
+                          "sku":  98,
+                          "asns":  6
+                      },
+                      {
+                          "name":  "Mahmoud Reda",
+                          "qty":  2317,
+                          "sku":  55,
+                          "asns":  4
+                      },
+                      {
+                          "name":  "Seif Mohamed",
+                          "qty":  6498,
+                          "sku":  77,
+                          "asns":  4
+                      }
+                  ],
+    "vendors":  [
+                    {
+                        "name":  "Food Trip",
+                        "qty":  1930,
+                        "sku":  15,
+                        "asns":  2,
+                        "facility":  "CAIID01"
+                    },
+                    {
+                        "name":  "ميمكو للمشروبات والاغذيه",
+                        "qty":  0,
+                        "sku":  0,
+                        "asns":  0,
+                        "facility":  "CAIID01"
+                    },
+                    {
+                        "name":  "تنور الشام للمخبوزات",
+                        "qty":  120,
+                        "sku":  6,
+                        "asns":  1,
+                        "facility":  "CAIID06"
+                    },
+                    {
+                        "name":  "Dakahlia Slaughterhouse Company",
+                        "qty":  707,
+                        "sku":  17,
+                        "asns":  2,
+                        "facility":  "CAIID01"
+                    },
+                    {
+                        "name":  "ARMA TRADING CO.",
+                        "qty":  3994,
+                        "sku":  66,
+                        "asns":  1,
+                        "facility":  "CAIID01"
+                    },
+                    {
+                        "name":  "Fridal",
+                        "qty":  6523,
+                        "sku":  81,
+                        "asns":  4,
+                        "facility":  "CAIID01"
+                    },
+                    {
+                        "name":  "Kellogg Tolaram Noodles Egypt",
+                        "qty":  0,
+                        "sku":  0,
+                        "asns":  0,
+                        "facility":  "CAIID01"
+                    },
+                    {
+                        "name":  "الواحة فريش فودز",
+                        "qty":  0,
+                        "sku":  0,
+                        "asns":  0,
+                        "facility":  "CAIID07"
+                    },
+                    {
+                        "name":  "كلاس ايه للتجارة",
+                        "qty":  5668,
+                        "sku":  33,
+                        "asns":  1,
+                        "facility":  "CAIID01"
+                    },
+                    {
+                        "name":  "شركة اجروفات",
+                        "qty":  474,
+                        "sku":  24,
+                        "asns":  1,
+                        "facility":  "CAIID07"
+                    },
+                    {
+                        "name":  "Green House",
+                        "qty":  314,
+                        "sku":  18,
+                        "asns":  1,
+                        "facility":  "CAIID07"
+                    },
+                    {
+                        "name":  "Egypt Foods",
+                        "qty":  8466,
+                        "sku":  26,
+                        "asns":  1,
+                        "facility":  "CAIID01"
+                    },
+                    {
+                        "name":  "نفرتوت لاستصلاح واستزراع الاراضي",
+                        "qty":  110,
+                        "sku":  6,
+                        "asns":  1,
+                        "facility":  "CAIID07"
+                    },
+                    {
+                        "name":  "الأصدقاء الصناعة وتجارة منتجات الالبان",
+                        "qty":  0,
+                        "sku":  0,
+                        "asns":  0,
+                        "facility":  "CAIID07"
+                    },
+                    {
+                        "name":  "ايسينشالز لصناعه الثلج",
+                        "qty":  700,
+                        "sku":  1,
+                        "asns":  1,
+                        "facility":  "CAIID05"
+                    },
+                    {
+                        "name":  "The Coca Cola Bottling Co of Egypt",
+                        "qty":  0,
+                        "sku":  0,
+                        "asns":  0,
+                        "facility":  "CAIID01"
+                    },
+                    {
+                        "name":  "International Agricultural Manufacturing Projects (BEYTI)",
+                        "qty":  0,
+                        "sku":  0,
+                        "asns":  0,
+                        "facility":  "CAIID01"
+                    },
+                    {
+                        "name":  "Al-Faisal Food Industrial Company",
+                        "qty":  717,
+                        "sku":  9,
+                        "asns":  1,
+                        "facility":  "CAIID06"
+                    },
+                    {
+                        "name":  "Nestle Egypt",
+                        "qty":  0,
+                        "sku":  0,
+                        "asns":  0,
+                        "facility":  "CAIID01"
+                    },
+                    {
+                        "name":  "الأصدقاء لصناعة المخبوزات",
+                        "qty":  794,
+                        "sku":  23,
+                        "asns":  1,
+                        "facility":  "CAIID06"
+                    },
+                    {
+                        "name":  "شركة مايتى فودز للمنتجات الغذائية - Mighty Foods",
+                        "qty":  0,
+                        "sku":  0,
+                        "asns":  0,
+                        "facility":  "CAIID01"
+                    },
+                    {
+                        "name":  "El Mansour for trading and distribution",
+                        "qty":  292,
+                        "sku":  2,
+                        "asns":  2,
+                        "facility":  "CAIID01"
+                    },
+                    {
+                        "name":  "شركة الإسكندرية للحلويات والشيكولاته (كورونا)",
+                        "qty":  0,
+                        "sku":  0,
+                        "asns":  0,
+                        "facility":  "CAIID03+04"
+                    },
+                    {
+                        "name":  "Danone Egypt (DANONE EGYPT S.A.E.).",
+                        "qty":  455,
+                        "sku":  22,
+                        "asns":  1,
+                        "facility":  "CAIID07"
+                    },
+                    {
+                        "name":  "الشاهين للمواد الغذائية فريش فارم",
+                        "qty":  241,
+                        "sku":  17,
+                        "asns":  1,
+                        "facility":  "CAIID07"
+                    },
+                    {
+                        "name":  "Ideal for Food Industries",
+                        "qty":  0,
+                        "sku":  0,
+                        "asns":  0,
+                        "facility":  "CAIID01"
+                    },
+                    {
+                        "name":  "شركة مافا للتجارة المحدودة",
+                        "qty":  722,
+                        "sku":  24,
+                        "asns":  1,
+                        "facility":  "CAIID07"
+                    },
+                    {
+                        "name":  "فينتيج بوب للمشروبات والمنتجات الغذائية",
+                        "qty":  1764,
+                        "sku":  4,
+                        "asns":  1,
+                        "facility":  "CAIID01"
+                    },
+                    {
+                        "name":  "Lanalou",
+                        "qty":  360,
+                        "sku":  15,
+                        "asns":  1,
+                        "facility":  "CAIID02"
+                    },
+                    {
+                        "name":  "شركة بيبسي كولا مصر",
+                        "qty":  0,
+                        "sku":  0,
+                        "asns":  0,
+                        "facility":  "CAIID01"
+                    },
+                    {
+                        "name":  "Khodar Trading And Marketing",
+                        "qty":  627,
+                        "sku":  30,
+                        "asns":  1,
+                        "facility":  "CAIID07"
+                    },
+                    {
+                        "name":  "LOKEN",
+                        "qty":  740,
+                        "sku":  7,
+                        "asns":  2,
+                        "facility":  "CAIID01"
+                    },
+                    {
+                        "name":  "شركة السبيل الجديده للانتاج الداجنى ش.م.م",
+                        "qty":  119,
+                        "sku":  7,
+                        "asns":  1,
+                        "facility":  "CAIID07"
+                    }
+                ],
+    "hourly":  [
+                   {
+                       "label":  " AM",
+                       "arrive":  0,
+                       "dock":  0,
+                       "received":  7
+                   },
+                   {
+                       "label":  " AM",
+                       "arrive":  0,
+                       "dock":  0,
+                       "received":  8
+                   },
+                   {
+                       "label":  " AM",
+                       "arrive":  0,
+                       "dock":  0,
+                       "received":  2
+                   },
+                   {
+                       "label":  " PM",
+                       "arrive":  0,
+                       "dock":  0,
+                       "received":  5
+                   },
+                   {
+                       "label":  " PM",
+                       "arrive":  0,
+                       "dock":  0,
+                       "received":  7
+                   }
+               ],
+    "accuracy":  [
+                     {
+                         "label":  "Mentioned in Schedule",
+                         "n":  29
+                     },
+                     {
+                         "label":  "Not specified",
+                         "n":  19
+                     }
+                 ],
+    "log":  [
+                {
+                    "vendor":  "Dakahlia Slaughterhouse Company",
+                    "asn":  "A06143553PN",
+                    "ro":  "473914766534184",
+                    "facility":  "CAIID01",
+                    "status":  "Open",
+                    "arrival":  "",
+                    "emp":  "",
+                    "totalRo":  400,
+                    "qty":  0,
+                    "sku":  0
+                },
+                {
+                    "vendor":  "Egypt Foods",
+                    "asn":  "A06151522PN",
+                    "ro":  "473914379712186",
+                    "facility":  "CAIID01",
+                    "status":  "Received",
+                    "arrival":  "12:10:53 PM",
+                    "emp":  "Abdelwhab",
+                    "totalRo":  17390,
+                    "qty":  8466,
+                    "sku":  26
+                },
+                {
+                    "vendor":  "El Mansour for trading and distribution",
+                    "asn":  "A06143514PN",
+                    "ro":  "473914218839093",
+                    "facility":  "CAIID01",
+                    "status":  "Received",
+                    "arrival":  "1:34:49 PM",
+                    "emp":  "Abdelwhab",
+                    "totalRo":  244,
+                    "qty":  112,
+                    "sku":  1
+                },
+                {
+                    "vendor":  "El Mansour for trading and distribution",
+                    "asn":  "A06168301PN",
+                    "ro":  "473914538720068",
+                    "facility":  "CAIID01",
+                    "status":  "Received",
+                    "arrival":  "1:34:49 PM",
+                    "emp":  "Abdelwhab",
+                    "totalRo":  552,
+                    "qty":  180,
+                    "sku":  1
+                },
+                {
+                    "vendor":  "Food Trip",
+                    "asn":  "A06143478PN",
+                    "ro":  "473914763682250",
+                    "facility":  "CAIID01",
+                    "status":  "Received",
+                    "arrival":  "1:48:35 PM",
+                    "emp":  "Mohamed Safwat",
+                    "totalRo":  1688,
+                    "qty":  1276,
+                    "sku":  10
+                },
+                {
+                    "vendor":  "Food Trip",
+                    "asn":  "A06161133PN",
+                    "ro":  "473914672185909",
+                    "facility":  "CAIID01",
+                    "status":  "Received",
+                    "arrival":  "1:48:35 PM",
+                    "emp":  "Mohamed Safwat",
+                    "totalRo":  1816,
+                    "qty":  654,
+                    "sku":  5
+                },
+                {
+                    "vendor":  "Fridal",
+                    "asn":  "A06065828PN",
+                    "ro":  "473914232698103",
+                    "facility":  "CAIID01",
+                    "status":  "Received",
+                    "arrival":  "9:00:28 AM",
+                    "emp":  "Mohamed Safwat",
+                    "totalRo":  8581,
+                    "qty":  6003,
+                    "sku":  73
+                },
+                {
+                    "vendor":  "Fridal",
+                    "asn":  "A06091845PN",
+                    "ro":  "473914953937326",
+                    "facility":  "CAIID01",
+                    "status":  "Received",
+                    "arrival":  "9:00:28 AM",
+                    "emp":  "Mohamed Safwat",
+                    "totalRo":  1180,
+                    "qty":  364,
+                    "sku":  4
+                },
+                {
+                    "vendor":  "Fridal",
+                    "asn":  "A06117482PN",
+                    "ro":  "473914811605706",
+                    "facility":  "CAIID01",
+                    "status":  "Received",
+                    "arrival":  "9:00:28 AM",
+                    "emp":  "Mohamed Safwat",
+                    "totalRo":  144,
+                    "qty":  48,
+                    "sku":  1
+                },
+                {
+                    "vendor":  "Fridal",
+                    "asn":  "A06143509PN",
+                    "ro":  "473914965295520",
+                    "facility":  "CAIID01",
+                    "status":  "Received",
+                    "arrival":  "9:00:28 AM",
+                    "emp":  "Mohamed Safwat",
+                    "totalRo":  278,
+                    "qty":  108,
+                    "sku":  3
+                },
+                {
+                    "vendor":  "Ideal for Food Industries",
+                    "asn":  "A06091842PN",
+                    "ro":  "473914963815918",
+                    "facility":  "CAIID01",
+                    "status":  "Open",
+                    "arrival":  "",
+                    "emp":  "",
+                    "totalRo":  144,
+                    "qty":  0,
+                    "sku":  0
+                },
+                {
+                    "vendor":  "Ideal for Food Industries",
+                    "asn":  "A06117479PN",
+                    "ro":  "473914084822718",
+                    "facility":  "CAIID01",
+                    "status":  "Open",
+                    "arrival":  "",
+                    "emp":  "",
+                    "totalRo":  96,
+                    "qty":  0,
+                    "sku":  0
+                },
+                {
+                    "vendor":  "Ideal for Food Industries",
+                    "asn":  "A06143507PN",
+                    "ro":  "473914287438232",
+                    "facility":  "CAIID01",
+                    "status":  "Open",
+                    "arrival":  "",
+                    "emp":  "",
+                    "totalRo":  108,
+                    "qty":  0,
+                    "sku":  0
+                },
+                {
+                    "vendor":  "International Agricultural Manufacturing Projects (BEYTI)",
+                    "asn":  "A06143505PN",
+                    "ro":  "473914864271748",
+                    "facility":  "CAIID01",
+                    "status":  "Open",
+                    "arrival":  "",
+                    "emp":  "",
+                    "totalRo":  5085,
+                    "qty":  0,
+                    "sku":  0
+                },
+                {
+                    "vendor":  "International Agricultural Manufacturing Projects (BEYTI)",
+                    "asn":  "A06161139PN",
+                    "ro":  "473914050062622",
+                    "facility":  "CAIID01",
+                    "status":  "Open",
+                    "arrival":  "",
+                    "emp":  "",
+                    "totalRo":  2630,
+                    "qty":  0,
+                    "sku":  0
+                },
+                {
+                    "vendor":  "Kellogg Tolaram Noodles Egypt",
+                    "asn":  "A06161143PN",
+                    "ro":  "473914271642063",
+                    "facility":  "CAIID01",
+                    "status":  "Open",
+                    "arrival":  "",
+                    "emp":  "",
+                    "totalRo":  909,
+                    "qty":  0,
+                    "sku":  0
+                },
+                {
+                    "vendor":  "LOKEN",
+                    "asn":  "A06143550PN",
+                    "ro":  "473914076159370",
+                    "facility":  "CAIID01",
+                    "status":  "Received",
+                    "arrival":  "9:48:18 AM",
+                    "emp":  "Seif Mohamed",
+                    "totalRo":  340,
+                    "qty":  340,
+                    "sku":  3
+                },
+                {
+                    "vendor":  "LOKEN",
+                    "asn":  "A06161145PN",
+                    "ro":  "473914881961577",
+                    "facility":  "CAIID01",
+                    "status":  "Received",
+                    "arrival":  "9:50:18 AM",
+                    "emp":  "Seif Mohamed",
+                    "totalRo":  400,
+                    "qty":  400,
+                    "sku":  4
+                },
+                {
+                    "vendor":  "Nestle Egypt",
+                    "asn":  "A06176833PN",
+                    "ro":  "473914684572975",
+                    "facility":  "CAIID01",
+                    "status":  "Open",
+                    "arrival":  "",
+                    "emp":  "",
+                    "totalRo":  968,
+                    "qty":  0,
+                    "sku":  0
+                },
+                {
+                    "vendor":  "The Coca Cola Bottling Co of Egypt",
+                    "asn":  "A06091822PN",
+                    "ro":  "473914950830294",
+                    "facility":  "CAIID01",
+                    "status":  "Open",
+                    "arrival":  "",
+                    "emp":  "",
+                    "totalRo":  19333,
+                    "qty":  0,
+                    "sku":  0
+                },
+                {
+                    "vendor":  "شركة بيبسي كولا مصر",
+                    "asn":  "A06117505PN",
+                    "ro":  "473914090104670",
+                    "facility":  "CAIID01",
+                    "status":  "Open",
+                    "arrival":  "",
+                    "emp":  "",
+                    "totalRo":  13956,
+                    "qty":  0,
+                    "sku":  0
+                },
+                {
+                    "vendor":  "شركة مايتى فودز للمنتجات الغذائية - Mighty Foods",
+                    "asn":  "A06065809PN",
+                    "ro":  "473914573953172",
+                    "facility":  "CAIID01",
+                    "status":  "Open",
+                    "arrival":  "",
+                    "emp":  "",
+                    "totalRo":  822,
+                    "qty":  0,
+                    "sku":  0
+                },
+                {
+                    "vendor":  "شركة مايتى فودز للمنتجات الغذائية - Mighty Foods",
+                    "asn":  "A06160057PN",
+                    "ro":  "473914923411208",
+                    "facility":  "CAIID01",
+                    "status":  "Open",
+                    "arrival":  "",
+                    "emp":  "",
+                    "totalRo":  1706,
+                    "qty":  0,
+                    "sku":  0
+                },
+                {
+                    "vendor":  "شركة مايتى فودز للمنتجات الغذائية - Mighty Foods",
+                    "asn":  "A06160071PN",
+                    "ro":  "473914865780105",
+                    "facility":  "CAIID01",
+                    "status":  "Open",
+                    "arrival":  "",
+                    "emp":  "",
+                    "totalRo":  576,
+                    "qty":  0,
+                    "sku":  0
+                },
+                {
+                    "vendor":  "فينتيج بوب للمشروبات والمنتجات الغذائية",
+                    "asn":  "A06117519PN",
+                    "ro":  "473914152596942",
+                    "facility":  "CAIID01",
+                    "status":  "Received",
+                    "arrival":  "1:21:45 PM",
+                    "emp":  "Seif Mohamed",
+                    "totalRo":  1860,
+                    "qty":  1764,
+                    "sku":  4
+                },
+                {
+                    "vendor":  "كلاس ايه للتجارة",
+                    "asn":  "A06161137PN",
+                    "ro":  "473914720441691",
+                    "facility":  "CAIID01",
+                    "status":  "Received",
+                    "arrival":  "12:29:27 PM",
+                    "emp":  "mahmoud walid",
+                    "totalRo":  5984,
+                    "qty":  5668,
+                    "sku":  33
+                },
+                {
+                    "vendor":  "ميمكو للمشروبات والاغذيه",
+                    "asn":  "A06117468PN",
+                    "ro":  "473914163376462",
+                    "facility":  "CAIID01",
+                    "status":  "Open",
+                    "arrival":  "",
+                    "emp":  "",
+                    "totalRo":  462,
+                    "qty":  0,
+                    "sku":  0
+                },
+                {
+                    "vendor":  "ميمكو للمشروبات والاغذيه",
+                    "asn":  "A06143501PN",
+                    "ro":  "473914280916521",
+                    "facility":  "CAIID01",
+                    "status":  "Open",
+                    "arrival":  "",
+                    "emp":  "",
+                    "totalRo":  618,
+                    "qty":  0,
+                    "sku":  0
+                },
+                {
+                    "vendor":  "شركة الإسكندرية للحلويات والشيكولاته (كورونا)",
+                    "asn":  "A06173290PN",
+                    "ro":  "473914436979585",
+                    "facility":  "CAIID03+04",
+                    "status":  "Open",
+                    "arrival":  "",
+                    "emp":  "",
+                    "totalRo":  2172,
+                    "qty":  0,
+                    "sku":  0
+                },
+                {
+                    "vendor":  "Dakahlia Slaughterhouse Company",
+                    "asn":  "A06173310PN",
+                    "ro":  "473914975189657",
+                    "facility":  "CAIID05",
+                    "status":  "Received",
+                    "arrival":  "9:20:03 AM",
+                    "emp":  "Ahmed samy",
+                    "totalRo":  1072,
+                    "qty":  606,
+                    "sku":  10
+                },
+                {
+                    "vendor":  "Al-Faisal Food Industrial Company",
+                    "asn":  "A06174621PN",
+                    "ro":  "473914211797175",
+                    "facility":  "CAIID06",
+                    "status":  "Received",
+                    "arrival":  "10:00:45 AM",
+                    "emp":  "Abdelwhab",
+                    "totalRo":  934,
+                    "qty":  717,
+                    "sku":  9
+                },
+                {
+                    "vendor":  "الأصدقاء لصناعة المخبوزات",
+                    "asn":  "A06176714PN",
+                    "ro":  "473914225927609",
+                    "facility":  "CAIID06",
+                    "status":  "Open",
+                    "arrival":  "",
+                    "emp":  "",
+                    "totalRo":  221,
+                    "qty":  0,
+                    "sku":  0
+                },
+                {
+                    "vendor":  "تنور الشام للمخبوزات",
+                    "asn":  "A06176705PN",
+                    "ro":  "473914145608355",
+                    "facility":  "CAIID06",
+                    "status":  "Received",
+                    "arrival":  "12:16:56 PM",
+                    "emp":  "Mohamed Fathy",
+                    "totalRo":  120,
+                    "qty":  120,
+                    "sku":  6
+                },
+                {
+                    "vendor":  "Dakahlia Slaughterhouse Company",
+                    "asn":  "A06176709PN",
+                    "ro":  "473914245314769",
+                    "facility":  "CAIID07",
+                    "status":  "Received",
+                    "arrival":  "10:27:08 AM",
+                    "emp":  "Mhamoud Reda",
+                    "totalRo":  160,
+                    "qty":  101,
+                    "sku":  7
+                },
+                {
+                    "vendor":  "Danone Egypt (DANONE EGYPT S.A.E.).",
+                    "asn":  "A06176706PN",
+                    "ro":  "473914770336938",
+                    "facility":  "CAIID07",
+                    "status":  "Received",
+                    "arrival":  "11:25:29 AM",
+                    "emp":  "Ahmed samy",
+                    "totalRo":  482,
+                    "qty":  455,
+                    "sku":  22
+                },
+                {
+                    "vendor":  "Green House",
+                    "asn":  "A06178859PN",
+                    "ro":  "473914358456404",
+                    "facility":  "CAIID07",
+                    "status":  "Received",
+                    "arrival":  "10:51:43 AM",
+                    "emp":  "Ahmed samy",
+                    "totalRo":  389,
+                    "qty":  314,
+                    "sku":  18
+                },
+                {
+                    "vendor":  "Khodar Trading And Marketing",
+                    "asn":  "A06184509PN",
+                    "ro":  "473914310874788",
+                    "facility":  "CAIID07",
+                    "status":  "Received",
+                    "arrival":  "10:30:29 AM",
+                    "emp":  "Hazem Mohammed",
+                    "totalRo":  1153,
+                    "qty":  627,
+                    "sku":  30
+                },
+                {
+                    "vendor":  "الأصدقاء الصناعة وتجارة منتجات الالبان",
+                    "asn":  "A06176707PN",
+                    "ro":  "473914889078153",
+                    "facility":  "CAIID07",
+                    "status":  "Open",
+                    "arrival":  "",
+                    "emp":  "",
+                    "totalRo":  436,
+                    "qty":  0,
+                    "sku":  0
+                },
+                {
+                    "vendor":  "الأصدقاء لصناعة المخبوزات",
+                    "asn":  "A06176713PN",
+                    "ro":  "473914010257130",
+                    "facility":  "CAIID07",
+                    "status":  "Received",
+                    "arrival":  "10:13:09 AM",
+                    "emp":  "MAHMOUD REDA",
+                    "totalRo":  796,
+                    "qty":  794,
+                    "sku":  23
+                },
+                {
+                    "vendor":  "الشاهين للمواد الغذائية فريش فارم",
+                    "asn":  "A06176711PN",
+                    "ro":  "473914938680621",
+                    "facility":  "CAIID07",
+                    "status":  "Received",
+                    "arrival":  "11:11:52 AM",
+                    "emp":  "Ahmed samy",
+                    "totalRo":  352,
+                    "qty":  241,
+                    "sku":  17
+                },
+                {
+                    "vendor":  "الواحة فريش فودز",
+                    "asn":  "A06176708PN",
+                    "ro":  "473914424092374",
+                    "facility":  "CAIID07",
+                    "status":  "Open",
+                    "arrival":  "",
+                    "emp":  "",
+                    "totalRo":  37,
+                    "qty":  0,
+                    "sku":  0
+                },
+                {
+                    "vendor":  "شركة اجروفات",
+                    "asn":  "A06184511PN",
+                    "ro":  "473914074491986",
+                    "facility":  "CAIID07",
+                    "status":  "Received",
+                    "arrival":  "10:27:05 AM",
+                    "emp":  "Ahmed samy",
+                    "totalRo":  750,
+                    "qty":  474,
+                    "sku":  24
+                },
+                {
+                    "vendor":  "شركة مافا للتجارة المحدودة",
+                    "asn":  "A06184512PN",
+                    "ro":  "473914114612046",
+                    "facility":  "CAIID07",
+                    "status":  "Received",
+                    "arrival":  "12:09:54 PM",
+                    "emp":  "MAHMOUD REDA",
+                    "totalRo":  730,
+                    "qty":  722,
+                    "sku":  24
+                },
+                {
+                    "vendor":  "نفرتوت لاستصلاح واستزراع الاراضي",
+                    "asn":  "A06184510PN",
+                    "ro":  "473914399257657",
+                    "facility":  "CAIID07",
+                    "status":  "Received",
+                    "arrival":  "1:27:03 PM",
+                    "emp":  "Hazem Mohammed",
+                    "totalRo":  116,
+                    "qty":  110,
+                    "sku":  6
+                },
+                {
+                    "vendor":  "شركة السبيل الجديده للانتاج الداجنى ش.م.م",
+                    "asn":  "A06176704PN",
+                    "ro":  "473914609057684",
+                    "facility":  "CAIID07",
+                    "status":  "Received",
+                    "arrival":  "10:31:32 AM",
+                    "emp":  "Ahmed samy",
+                    "totalRo":  137,
+                    "qty":  119,
+                    "sku":  7
+                },
+                {
+                    "vendor":  "ARMA TRADING CO.",
+                    "asn":  "A06191284PN",
+                    "ro":  "473914206308005",
+                    "facility":  "CAIID01",
+                    "status":  "Received",
+                    "arrival":  "10:34:42 AM",
+                    "emp":  "Seif Mohamed",
+                    "totalRo":  6397,
+                    "qty":  3994,
+                    "sku":  66
+                },
+                {
+                    "vendor":  "ايسينشالز لصناعه الثلج",
+                    "asn":  "A06189458PN",
+                    "ro":  "473914533889478",
+                    "facility":  "CAIID05",
+                    "status":  "Received",
+                    "arrival":  "12:09:36 PM",
+                    "emp":  "MAHMOUD REDA",
+                    "totalRo":  700,
+                    "qty":  700,
+                    "sku":  1
+                },
+                {
+                    "vendor":  "Lanalou",
+                    "asn":  "A06176368PN",
+                    "ro":  "",
+                    "facility":  "CAIID02",
+                    "status":  "Received",
+                    "arrival":  "1:21:12 PM",
+                    "emp":  "Abdelwhab",
+                    "totalRo":  360,
+                    "qty":  360,
+                    "sku":  15
+                }
+            ]
+}

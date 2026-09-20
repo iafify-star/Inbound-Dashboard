@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8" />
+<title>Inbound Daily Report — 20 September 2026</title>
+<style>
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #fff; }
+  body {
+    width: 210mm;
+    height: 297mm;
+    overflow: hidden;
+    font-family: "Segoe UI", Arial, sans-serif;
+    color: #141414;
+    font-size: 10.5px;
+    line-height: 1.35;
+  }
+  .page {
+    width: 210mm;
+    height: 297mm;
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+  }
+  .hero {
+    background: #f5e023;
+    padding: 11mm 12mm 9mm;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .hero img {
+    height: 52px;
+    width: auto;
+    display: block;
+    background: #f5e023;
+  }
+  .hero-text { text-align: left; }
+  .hero-text .team {
+    font-size: 11px;
+    font-weight: 800;
+    color: #141414;
+  }
+  .hero-text h1 {
+    margin: 3px 0 2px;
+    font-size: 24px;
+    font-weight: 800;
+  }
+  .hero-text .when {
+    font-size: 12px;
+    font-weight: 600;
+    color: #3a3a3a;
+  }
+  .body {
+    padding: 10mm 12mm 10mm;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  .kpis {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+  .kpi {
+    padding: 10px 10px 9px;
+    border-radius: 8px;
+    min-height: 92px;
+  }
+  .kpi .l { font-size: 11px; font-weight: 800; }
+  .kpi .v { font-size: 22px; font-weight: 800; margin-top: 8px; letter-spacing: -.02em; }
+  .kpi .s { font-size: 10px; margin-top: 3px; font-weight: 700; }
+  .kpi.yellow { background: #fff6b0; }
+  .kpi.red { background: #fde8e8; }
+  .kpi.dark { background: #141414; color: #fff; }
+  .kpi.dark .s { color: #f5e023; }
+  .kpi.green { background: #e4f7f2; }
+  .kpi.green .s { color: #18795f; }
+  h2 {
+    margin: 18px 0 10px;
+    font-size: 12px;
+    font-weight: 800;
+    background: #141414;
+    color: #fff;
+    padding: 6px 10px;
+    border-radius: 6px;
+  }
+  table { width: 100%; border-collapse: collapse; }
+  th, td {
+    padding: 8px 8px;
+    border-bottom: 1px solid #eee;
+    text-align: left;
+    vertical-align: middle;
+  }
+  th {
+    font-size: 9.5px;
+    font-weight: 800;
+    color: #555;
+    background: #f7f7f8;
+  }
+  td { font-size: 10.5px; }
+  td.num, th.num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .code {
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 10px;
+    font-weight: 800;
+    margin-right: 6px;
+  }
+  tr.total td {
+    font-weight: 800;
+    background: #fff6b0;
+    border-bottom: none;
+  }
+  .ok { color: #18795f; font-weight: 800; }
+  .foot {
+    background: #141414;
+    color: #fff;
+    padding: 7px 12mm;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 10px;
+    font-weight: 700;
+  }
+  .foot .mark {
+    background: #f5e023;
+    color: #141414;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: .04em;
+  }
+</style>
+</head>
+<body>
+  <div class="page">
+    <div class="hero">
+      <img src="file:///C:/Users/iafify/Desktop/Inbound%20Dashboard/assets/noon-minutes-logo.png" alt="noon minutes" />
+      <div class="hero-text">
+        <div class="team">Inbound Team</div>
+        <h1>Daily Receiving Report</h1>
+        <div class="when">Sunday, 20 September 2026</div>
+      </div>
+    </div>
+
+    <div class="body">
+      <div class="kpis">
+        <div class="kpi yellow">
+          <div class="l">ASN</div>
+          <div class="v">29 / 48</div>
+          <div class="s">60% received</div>
+        </div>
+        <div class="kpi red">
+          <div class="l">Quantity</div>
+          <div class="v">35,837 / 105,784</div>
+          <div class="s">34% of planned</div>
+        </div>
+        <div class="kpi dark">
+          <div class="l">Vendors</div>
+          <div class="v">22 / 33</div>
+          <div class="s">67% received</div>
+        </div>
+        <div class="kpi green">
+          <div class="l">Capacity</div>
+          <div class="v">35,837 / 87,100</div>
+          <div class="s">41% of daily capacity</div>
+        </div>
+      </div>
+
+      <h2>Facilities</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Facility</th>
+            <th class="num">ASN</th>
+            <th class="num">Qty / Total RO</th>
+            <th class="num">Qty / Capacity</th>
+            <th class="num">%</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="code">CAIID01</span> Ambient</td>
+            <td class="num">14 / 29</td>
+            <td class="num">29,377 / 94,667</td>
+            <td class="num">29,377 / 58,100</td>
+            <td class="num ok">51%</td>
+          </tr>
+          <tr>
+            <td class="code">CAIID02</td>
+            <td class="num">1 / 1</td>
+            <td class="num">360 / 360</td>
+            <td class="num">360 / 1,500</td>
+            <td class="num ok">24%</td>
+          </tr>
+          <tr>
+            <td><span class="code">CAIID03+04</span> Chilled</td>
+            <td class="num">0 / 1</td>
+            <td class="num">0 / 2,172</td>
+            <td class="num">0 / 7,000</td>
+            <td class="num">0%</td>
+          </tr>
+          <tr>
+            <td><span class="code">CAIID05</span> Frozen</td>
+            <td class="num">2 / 2</td>
+            <td class="num">1,306 / 1,772</td>
+            <td class="num">1,306 / 7,400</td>
+            <td class="num ok">18%</td>
+          </tr>
+          <tr>
+            <td><span class="code">CAIID06</span> X-Dock</td>
+            <td class="num">2 / 3</td>
+            <td class="num">837 / 1,275</td>
+            <td class="num">837 / 5,700</td>
+            <td class="num ok">15%</td>
+          </tr>
+          <tr>
+            <td><span class="code">CAIID07</span> X-Dock</td>
+            <td class="num">10 / 12</td>
+            <td class="num">3,957 / 5,538</td>
+            <td class="num">3,957 / 7,400</td>
+            <td class="num ok">53%</td>
+          </tr>
+          <tr class="total">
+            <td>Total</td>
+            <td class="num">29 / 48</td>
+            <td class="num">35,837 / 105,784</td>
+            <td class="num">35,837 / 87,100</td>
+            <td class="num">41%</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="foot">
+      <span>Inbound Daily Report · 20 September 2026</span>
+      <span class="mark">noon MINUTES</span>
+    </div>
+  </div>
+</body>
+</html>
