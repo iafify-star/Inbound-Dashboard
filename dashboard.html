@@ -91,9 +91,11 @@
   }
   .badge b{color:var(--text);}
   .badge.live{border-color:rgba(31,176,143,.4); color:var(--green);}
+  .badge.live .dot{animation:livePulse 1.5s ease-in-out infinite;}
   .badge.cached{border-color:rgba(219,51,50,.35); color:var(--red);}
   .badge.loading{border-color:rgba(216,196,0,.5); color:var(--yellow-dark);}
   .dot{width:8px;height:8px;border-radius:50%;background:currentColor;box-shadow:0 0 8px currentColor;}
+  @keyframes livePulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.7)}}
   .btn-refresh{
     background:var(--yellow);border:none;color:var(--black);font-weight:800;
     border-radius:999px;padding:9px 18px;font-size:13px;cursor:pointer;font-family:inherit;
@@ -361,7 +363,7 @@
       <img class="logo-img" src="assets/noon-minutes-logo.png" alt="noon minutes" />
       <div>
         <h1 data-i18n="brandTitle">Inbound Receiving Dashboard</h1>
-        <p data-i18n="brandSub">Inbound team — warehouse receiving operations</p>
+        <p data-i18n="brandSub">Live receiving — updates from the sheet</p>
       </div>
     </div>
     <div class="top-meta">
@@ -371,19 +373,14 @@
       <div class="badge">🕒 <span data-i18n="updated">Updated:</span> <b id="metaUpdated">-</b></div>
       <button class="btn-lang" id="btnLang" type="button" aria-label="Switch language">العربية</button>
       <button class="btn-theme" id="btnTheme" type="button" aria-label="Toggle color theme">🌙 Dark</button>
-      <button class="btn-ghost" id="btnCopyLink" data-i18n="copyLink">Copy link</button>
-      <button class="btn-ghost" id="btnSavePref" data-i18n="savePref">Save as default</button>
       <button class="btn-ghost" id="btnExport" data-i18n="exportExcel">Export Excel</button>
-      <button class="btn-ghost" id="btnPrint" data-i18n="printReport">Print / PDF</button>
       <button class="btn-refresh" id="btnRefresh" data-i18n="refresh">🔄 Refresh</button>
     </div>
   </header>
 
   <div class="alert error" id="sheetError" hidden></div>
-  <div class="alert-stack" id="alertStack"></div>
 
   <div class="filters">
-    <!-- اختصارات التاريخ: النهارده / امبارح / الأسبوع. بتغيّر القائمتين تحت -->
     <div class="date-chips" id="dateChips">
       <button type="button" data-range="today" data-i18n="chipToday">Today</button>
       <button type="button" data-range="yesterday" data-i18n="chipYesterday">Yesterday</button>
@@ -402,100 +399,24 @@
       <label data-i18n="facility">Facility / Warehouse</label>
       <select id="fFacility"><option value="">All</option></select>
     </div>
-    <div class="field">
-      <label data-i18n="employee">Employee</label>
-      <select id="fEmp"><option value="">All</option></select>
-    </div>
-    <div class="field">
-      <label data-i18n="status">Status</label>
-      <select id="fStatus"><option value="">All</option></select>
-    </div>
     <div class="field grow">
       <label data-i18n="searchLabel">Search vendor / ASN / RO</label>
       <input id="fSearch" type="text" data-i18n-placeholder="searchPh" placeholder="Vendor name or ASN number..." />
     </div>
     <button class="reset" id="btnReset" data-i18n="reset">↺ Reset filters</button>
   </div>
-  <div class="chip-bar" id="filterChips"></div>
-
-  <div class="panel floor" id="floorPanel">
-    <div class="floor-head">
-      <div>
-        <h3 data-i18n="floorTitle">Live shift floor</h3>
-        <p class="desc" id="floorDesc" data-i18n="floorDesc">Latest receiving activity for the current shift day</p>
-      </div>
-    </div>
-    <div class="floor-stats" id="floorStats"></div>
-    <div class="floor-list" id="floorList"></div>
-  </div>
 
   <div class="kpis">
-    <div class="kpi c1"><span class="icon">📥</span><div class="label" data-i18n="kpiReceipts">Total receipts (ASNs)</div><div class="value" id="kpiShipments">0</div><div class="sub" data-i18n="kpiReceiptsSub">Inbound ASNs received</div></div>
-    <div class="kpi c2"><span class="icon">📦</span><div class="label" data-i18n="kpiQty">Total quantity received</div><div class="value" id="kpiQty">0</div><div class="sub" data-i18n="kpiQtySub">Total units received</div></div>
-    <div class="kpi c3"><span class="icon">🏭</span><div class="label" data-i18n="kpiVendors">Vendors</div><div class="value" id="kpiVendors">0</div><div class="sub" data-i18n="kpiVendorsSub">Unique vendors</div></div>
-    <div class="kpi c5"><span class="icon">📈</span><div class="label" data-i18n="kpiAvg">Avg quantity / receipt</div><div class="value" id="kpiAvg">0</div><div class="sub" data-i18n="kpiAvgSub">Average units per ASN</div></div>
-  </div>
-
-  <div class="compare-grid" id="compareGrid"></div>
-
-  <div class="grid2">
-    <div class="panel">
-      <h3 data-i18n="accTitle">Supplier schedule accuracy</h3>
-      <p class="desc" data-i18n="accDesc">How inbound receipts matched the planned schedule</p>
-      <div class="chart-box"><canvas id="chartAccuracy"></canvas></div>
-    </div>
-    <div class="panel">
-      <h3 data-i18n="qualityTitle">Receiving data quality</h3>
-      <p class="desc" data-i18n="qualityDesc">Tap an issue to open the exception inbox</p>
-      <div class="issue-list" id="qualityList"></div>
-    </div>
-  </div>
-
-  <div class="panel" id="exceptionPanel" hidden>
-    <h3 data-i18n="exTitle">Exception inbox</h3>
-    <p class="desc" id="exceptionDesc" data-i18n="exDesc">Rows that need a data fix</p>
-    <div class="table-scroll">
-      <table>
-        <thead>
-          <tr>
-            <th data-i18n="thDate">Date</th>
-            <th data-i18n="thVendor">Vendor</th>
-            <th data-i18n="thAsn">ASN</th>
-            <th data-i18n="thFacility">Facility</th>
-            <th data-i18n="thQty">Quantity</th>
-            <th data-i18n="thEmp">Employee</th>
-          </tr>
-        </thead>
-        <tbody id="exceptionBody"></tbody>
-      </table>
-    </div>
-  </div>
-
-  <div class="panel" style="margin-bottom:16px;">
-    <h3 data-i18n="rankTitle">Inbound team ranking</h3>
-    <p class="desc" data-i18n="rankDesc">Employees ranked by receipts, quantity, and SKUs</p>
-    <p class="mobile-hint" data-i18n="scrollHint">Swipe the table sideways on mobile</p>
-    <div class="table-scroll">
-      <table class="rank-table">
-        <thead>
-          <tr>
-            <th data-i18n="thRank">#</th>
-            <th data-i18n="thEmp">Employee</th>
-            <th data-i18n="axisReceipts">Receipts</th>
-            <th data-i18n="thQty">Quantity</th>
-            <th data-i18n="thSku">SKU</th>
-          </tr>
-        </thead>
-        <tbody id="rankBody"></tbody>
-      </table>
-    </div>
+    <div class="kpi c1"><span class="icon">📥</span><div class="label" data-i18n="kpiAsn">ASNs received / planned</div><div class="value" id="kpiAsn">0 / 0</div><div class="sub" id="kpiAsnSub">Received 0 of 0 ASNs</div></div>
+    <div class="kpi c2"><span class="icon">📦</span><div class="label" data-i18n="kpiQty">Quantity received / planned</div><div class="value" id="kpiQty">0 / 0</div><div class="sub" id="kpiQtySub">Received 0 of 0 units</div></div>
+    <div class="kpi c3"><span class="icon">🏭</span><div class="label" data-i18n="kpiVendors">Vendors</div><div class="value" id="kpiVendors">0</div><div class="sub" data-i18n="kpiVendorsSub">Unique vendors — counted once even with many ASNs</div></div>
+    <div class="kpi c5"><span class="icon">✅</span><div class="label" data-i18n="kpiVendorsGot">Vendors received</div><div class="value" id="kpiVendorsGot">0</div><div class="sub" data-i18n="kpiVendorsGotSub">Vendors with quantity received, counted once</div></div>
   </div>
 
   <div class="panel" style="margin-bottom:16px;">
     <h3 data-i18n="capTitle">📊 Facility receiving capacity</h3>
     <p class="desc" id="capDesc" data-i18n="capDescDefault">Daily receiving capacity vs. quantity received</p>
     <div id="capacityBars"></div>
-    <div class="forecast-box" id="forecastBox" hidden></div>
   </div>
 
   <div class="grid">
@@ -505,35 +426,9 @@
       <div class="chart-box"><canvas id="chartFacilityQty"></canvas></div>
     </div>
     <div class="panel">
-      <h3 data-i18n="shareByFac">Receipts share by facility</h3>
-      <p class="desc" data-i18n="shareByFacDesc">Distribution of inbound receipts by facility</p>
-      <div class="chart-box"><canvas id="chartFacilityShare"></canvas></div>
-    </div>
-  </div>
-
-  <div class="grid">
-    <div class="panel">
       <h3 data-i18n="topVendors">Top 10 vendors by quantity</h3>
       <p class="desc" data-i18n="topVendorsDesc">Top 10 vendors by quantity received</p>
-      <div class="chart-box tall"><canvas id="chartTopVendors"></canvas></div>
-    </div>
-    <div class="panel">
-      <h3 data-i18n="empPerf">Inbound employee performance</h3>
-      <p class="desc" data-i18n="empPerfDesc">Receipts handled per inbound employee</p>
-      <div class="chart-box tall"><canvas id="chartEmp"></canvas></div>
-    </div>
-  </div>
-
-  <div class="grid2">
-    <div class="panel">
-      <h3 data-i18n="hourly">Receiving throughout the day</h3>
-      <p class="desc" data-i18n="hourlyDesc">Inbound receipts by hour of day</p>
-      <div class="chart-box"><canvas id="chartHourly"></canvas></div>
-    </div>
-    <div class="panel">
-      <h3 data-i18n="skuTitle">SKU count per vendor — Top 10</h3>
-      <p class="desc" data-i18n="skuDesc">Top 10 vendors by SKU count</p>
-      <div class="chart-box"><canvas id="chartSku"></canvas></div>
+      <div class="chart-box"><canvas id="chartTopVendors"></canvas></div>
     </div>
   </div>
 
@@ -541,7 +436,7 @@
     <div class="table-head">
       <div>
         <h3 style="margin-bottom:4px;" data-i18n="tableTitle">Detailed receiving log</h3>
-        <p class="desc" style="margin:0;" data-i18n="tableDesc">Click vendor, facility, or employee to filter</p>
+        <p class="desc" style="margin:0;" data-i18n="tableDesc">Receiving rows from the live sheet</p>
       </div>
       <input class="search" id="tableSearch" data-i18n-placeholder="tableSearch" placeholder="🔍 Quick search in table..." />
     </div>
@@ -552,16 +447,13 @@
           <tr>
             <th data-key="date" data-i18n="thDate">Date</th>
             <th data-key="vendor" data-i18n="thVendor">Vendor</th>
-            <th data-key="ro" data-i18n="thRo">RO</th>
             <th data-key="asn" data-i18n="thAsn">ASN</th>
             <th data-key="facility" data-i18n="thFacility">Facility</th>
+            <th data-key="totalRo" data-i18n="thTotalRo">Total RO</th>
             <th data-key="qty" data-i18n="thQty">Quantity</th>
             <th data-key="status" data-i18n="thStatus">Status</th>
-            <th data-key="accuracy" data-i18n="thAccuracy">Schedule</th>
-            <th data-key="arrival" data-i18n="thArrival">Arrival time</th>
             <th data-key="emp" data-i18n="thEmp">Employee</th>
-            <th data-key="cars" data-i18n="thCars">Cars</th>
-            <th data-key="product" data-i18n="thSku">SKU</th>
+            <th data-key="arrival" data-i18n="thArrival">Arrival time</th>
           </tr>
         </thead>
         <tbody id="tableBody"></tbody>
@@ -583,16 +475,23 @@
 // متعملش initializeApp أو fetch لفايربيس من الملف ده.
 // =============================================================================
 
-// لو الشيت اتغيّر: بدّل SHEET_ID و gid بتاع تبويب Capacity
-const SHEET_ID = "1D1HKYe0wjCb0sroYOgdkYLfcrkdNSWKKIYDaD6D9_Ns";
+// لو الشيت اتغيّر: بدّل SHEET_ID. الكابسيتي من Pivot Table 1 عمود F.
+const SHEET_ID = "1WDP9TBF3V_q09dWHpE8j9v0FFjbXmk95dXcIPe27St0";
+const CAPACITY_SHEET_ID = "1D1HKYe0wjCb0sroYOgdkYLfcrkdNSWKKIYDaD6D9_Ns";
 const CSV_BASE_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0`;
+const PIVOT_GID = "1851119120";
 const CAPACITY_GID = "514598343";
+const PIVOT_CSV_URLS = [
+  `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Pivot%20Table%201`,
+  `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${PIVOT_GID}`,
+];
 const CAPACITY_CSV_URLS = [
   `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Capacity`,
-  `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${CAPACITY_GID}`,
+  `https://docs.google.com/spreadsheets/d/${CAPACITY_SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Capacity`,
+  `https://docs.google.com/spreadsheets/d/${CAPACITY_SHEET_ID}/export?format=csv&gid=${CAPACITY_GID}`,
 ];
-// سرعة التحديث من الشيت بالمللي ثانية. 30000 = 30 ثانية. صغّرها بحرص عشان جوجل.
-const AUTO_REFRESH_MS = 30000;
+// سرعة التحديث من الشيت بالمللي ثانية. 8000 = أول بأول من غير ما نضغط على الشيت.
+const AUTO_REFRESH_MS = 8000;
 
 // نصوص إنجليزي / عربي. لو ضفت جملة: حط نفس المفتاح في en و ar.
 // في HTML استخدم data-i18n="المفتاح"
@@ -600,7 +499,7 @@ const I18N = {
   en:{
     title:"Inbound Receiving Dashboard | noon minutes",
     brandTitle:"Inbound Receiving Dashboard",
-    brandSub:"Inbound team — warehouse receiving operations",
+    brandSub:"Live receiving — updates from the sheet",
     live:"Live from receiving sheet",
     liveMock:"Mock backend — ready for Firebase",
     liveFirebase:"Firebase adapter (mock until connected)",
@@ -626,22 +525,29 @@ const I18N = {
     reset:"↺ Reset filters",
     kpiReceipts:"Total receipts (ASNs)",
     kpiReceiptsSub:"Inbound ASNs received",
-    kpiQty:"Total quantity received",
-    kpiQtySub:"Total units received",
+    kpiAsn:"ASNs received / planned",
+    kpiAsnSub:"Received {got} of {need} ASNs",
+    kpiQty:"Quantity received / planned",
+    kpiQtySub:"Received {got} of {need} units",
     kpiVendors:"Vendors",
-    kpiVendorsSub:"Unique vendors",
+    kpiVendorsSub:"Unique vendors — counted once even with many ASNs",
+    kpiVendorsGot:"Vendors received",
+    kpiVendorsGotSub:"Vendors with quantity received, counted once",
     kpiAvg:"Avg quantity / receipt",
     kpiAvgSub:"Average units per ASN",
+    kpiTotalRo:"Total RO",
+    kpiTotalRoSub:"Planned RO quantity",
     capTitle:"📊 Facility receiving capacity",
     capDescDefault:"Daily receiving capacity vs. quantity received",
+    capPivot:"Daily capacity from Pivot Table 1 — change column F and it updates here",
     capOne:"Receiving capacity from sheet — {date}",
     capMany:"Receiving capacity from sheet — {n} days ({from} → {to})",
     qtyByFac:"Quantity received by facility",
-    qtyByFacDesc:"Total units received, grouped by facility",
+    qtyByFacDesc:"Live received quantity by facility — grows as ASNs are received",
     shareByFac:"Receipts share by facility",
     shareByFacDesc:"Distribution of inbound receipts by facility",
     topVendors:"Top 10 vendors by quantity",
-    topVendorsDesc:"Top 10 vendors by quantity received",
+    topVendorsDesc:"Live top 10 vendors by quantity received",
     empPerf:"Inbound employee performance",
     empPerfDesc:"Receipts handled per inbound employee",
     hourly:"Receiving throughout the day",
@@ -652,7 +558,7 @@ const I18N = {
     tableDesc:"Click a column header to sort",
     tableSearch:"🔍 Quick search in table...",
     thDate:"Date", thVendor:"Vendor", thRo:"RO", thAsn:"ASN", thFacility:"Facility",
-    thQty:"Quantity", thStatus:"Status", thArrival:"Arrival time", thEmp:"Employee", thCars:"Cars", thSku:"SKU",
+    thQty:"Quantity", thTotalRo:"Total RO", thStatus:"Status", thArrival:"Arrival time", thEmp:"Employee", thCars:"Cars", thSku:"SKU",
     footer:"Live inbound receiving dashboard from Google Sheets — noon minutes inbound team",
     units:"units",
     qtyReceived:"Quantity received",
@@ -737,8 +643,8 @@ const I18N = {
   ar:{
     title:"لوحة استلام inbound | noon minutes",
     brandTitle:"لوحة استلام inbound",
-    brandSub:"فريق inbound — عمليات استلام المخازن",
-    live:"متصل ببيانات شيت الاستلام",
+    brandSub:"استلام لايف — بيتحدث من الشيت",
+    live:"لايف من شيت الاستلام",
     liveMock:"باك موك — جاهز لربط Firebase",
     liveFirebase:"محول Firebase (موك لحد الربط الفعلي)",
     loading:"جاري مزامنة بيانات inbound...",
@@ -763,22 +669,29 @@ const I18N = {
     reset:"↺ إعادة ضبط الفلاتر",
     kpiReceipts:"إجمالي الاستلامات (ASN)",
     kpiReceiptsSub:"أوامر الاستلام الواردة",
-    kpiQty:"إجمالي الكمية المستلمة",
-    kpiQtySub:"إجمالي الوحدات المستلمة",
+    kpiAsn:"ASN استُلم / المفروض",
+    kpiAsnSub:"استلمنا {got} من {need} ASN",
+    kpiQty:"الكمية المستلمة / المفروض",
+    kpiQtySub:"استلمنا {got} من {need} وحدة",
     kpiVendors:"الموردون",
-    kpiVendorsSub:"عدد الموردين",
+    kpiVendorsSub:"مورد واحد حتى لو جاي بأكثر من ASN",
+    kpiVendorsGot:"موردون استُلموا",
+    kpiVendorsGotSub:"موردين ليهم كمية مستلمة — مرة واحدة حتى لو كذا ASN",
     kpiAvg:"متوسط الكمية / استلام",
     kpiAvgSub:"متوسط الوحدات لكل ASN",
+    kpiTotalRo:"إجمالي RO",
+    kpiTotalRoSub:"كمية الـ RO المخططة",
     capTitle:"📊 الطاقة الاستيعابية للاستلام",
     capDescDefault:"الطاقة اليومية مقابل الكمية المستلمة",
+    capPivot:"الطاقة اليومية من Pivot Table 1 — غيّر عمود F ويتحدث هنا",
     capOne:"الطاقة الاستيعابية من الشيت — {date}",
     capMany:"الطاقة الاستيعابية من الشيت — {n} أيام ({from} → {to})",
     qtyByFac:"الكمية المستلمة حسب المستودع",
-    qtyByFacDesc:"إجمالي الوحدات المستلمة لكل مستودع",
+    qtyByFacDesc:"الكمية المستلمة لايف حسب المستودع — بتزيد أول بأول",
     shareByFac:"توزيع الاستلامات حسب المستودع",
     shareByFacDesc:"حصة كل مستودع من استلامات inbound",
     topVendors:"أعلى 10 موردين حسب الكمية",
-    topVendorsDesc:"أكثر الموردين استلامًا للكمية",
+    topVendorsDesc:"أعلى 10 موردين حسب الكمية المستلمة لايف",
     empPerf:"أداء موظفي inbound",
     empPerfDesc:"عدد الاستلامات لكل موظف inbound",
     hourly:"توزيع الاستلام خلال اليوم",
@@ -786,10 +699,10 @@ const I18N = {
     skuTitle:"عدد الـ SKU لكل مورد — أعلى 10",
     skuDesc:"أعلى 10 موردين حسب عدد الأصناف",
     tableTitle:"سجل الاستلام التفصيلي",
-    tableDesc:"اضغط على عنوان العمود للترتيب",
+    tableDesc:"صفوف الاستلام من الشيت الحي",
     tableSearch:"🔍 بحث سريع في الجدول...",
     thDate:"التاريخ", thVendor:"المورد", thRo:"RO", thAsn:"ASN", thFacility:"المستودع",
-    thQty:"الكمية", thStatus:"الحالة", thArrival:"وقت الوصول", thEmp:"الموظف", thCars:"السيارات", thSku:"SKU",
+    thQty:"الكمية", thTotalRo:"إجمالي RO", thStatus:"الحالة", thArrival:"وقت الوصول", thEmp:"الموظف", thCars:"السيارات", thSku:"SKU",
     footer:"لوحة استلام inbound متصلة مباشرة بجوجل شيت — فريق inbound في noon minutes",
     units:"وحدة",
     qtyReceived:"الكمية المستلمة",
@@ -923,14 +836,14 @@ function initLang(){
 const FACILITY_MERGE = { "CAIID03":"CAIID03+04", "CAIID04":"CAIID03+04" };
 
 // ===================== CAPACITY DATA =====================
-// أرقام احتياطية لو تبويب Capacity فاضي. الأرقام الحية من الشيت: Date | Facility | Capacity
+// أرقام احتياطية لو البيفوت وقع. الأرقام الحية من Pivot Table 1 عمود F.
 // لو ضفت مستودع: حطه هنا وفي CAPACITY_ORDER بنفس الاسم بعد الدمج.
 const CAPACITY_DATA = {
-  "CAIID01":   59200,
-  "CAIID03+04": 1500 + 7200, // CAIID03 (1,500) + CAIID04 (7,200)
-  "CAIID05":    7500,
-  "CAIID06":    5700,
-  "CAIID07":    7400,
+  "CAIID01":    58100,
+  "CAIID03+04": 1500,
+  "CAIID05":    7000,
+  "CAIID06":    7400,
+  "CAIID07":    5700,
 };
 const CAPACITY_ORDER = ["CAIID01","CAIID03+04","CAIID05","CAIID06","CAIID07"];
 
@@ -1086,18 +999,22 @@ function unique(arr, key){ return [...new Set(arr.map(r=>r[key]))].filter(Boolea
 let RAW_DATA = [];
 let RAW_CAPACITY = [];
 let charts = {};
-let sortState = {key:"arrival", dir:1};
+let sortState = {key:"arrival", dir:-1};
 let datesInitialized = false;
 let vendorFilter = "";
 let exceptionType = "";
 let lastChartKey = "";
+let lastChartSkin = "";
 let lastSnapHash = "";
+let lastCapacityRows = [];
+let lastCapacityAt = 0;
+const CAPACITY_REFRESH_MS = 60000;
 const TABLE_PAGE_SIZE = 50;
 let tablePage = 0;
 const SNAP_CACHE_KEY = "inbound-last-snap";
 
 function snapHash(receipts, capacity){
-  const r = (receipts||[]).map(x => [x.date,x.asn,x.qty,x.status,x.facility,x.emp,x.arrival].join("|")).join(";");
+  const r = (receipts||[]).map(x => [x.date,x.asn,x.qty,x.totalRo,x.status,x.facility,x.emp,x.arrival].join("|")).join(";");
   const c = (capacity||[]).map(x => [x.date,x.facility,x.capacity].join("|")).join(";");
   return r + "#" + c;
 }
@@ -1144,6 +1061,7 @@ function normalizeRow(row){
   const iso = parseSheetDate(dateRaw);
 
   const qtyRaw = (pick(row,["Quantity Received"])||"0").toString().replace(/,/g,"").trim();
+  const totalRoRaw = (pick(row,["Total RO","TotalRO"])||"0").toString().replace(/,/g,"").trim();
   const carsRaw = (pick(row,["Cars"])||"0").toString().replace(/,/g,"").trim();
   // Proudct = الإملاء الغلط الموجود في الشيت. متشيلوش.
   const productRaw = (pick(row,["Proudct","Product"])||"").toString().replace(/,/g,"").trim();
@@ -1159,8 +1077,9 @@ function normalizeRow(row){
     asn,
     accuracy: (pick(row,["Supplier Schedule Accuracy"])||"").toString().trim(),
     facility,
+    totalRo: parseInt(totalRoRaw,10) || 0,
     qty: parseInt(qtyRaw,10) || 0,
-    status: (pick(row,["Status"])||"").toString().trim() || "Received",
+    status: (pick(row,["Status"])||"").toString().trim(),
     arrival: arrivalRaw || null,
     emp: (pick(row,["Emp Name"])||"").toString().trim(),
     cars: parseInt(carsRaw,10) || 0,
@@ -1214,7 +1133,20 @@ function capacityForDate(date){
   return map;
 }
 
+function capacityFromPivot(){
+  const map = Object.fromEntries(CAPACITY_ORDER.map(f=>[f,0]));
+  RAW_CAPACITY.filter(r=>r.source==="pivot").forEach(r=>{
+    if(!r.facility) return;
+    map[r.facility] = (map[r.facility]||0) + (r.capacity||0);
+  });
+  CAPACITY_ORDER.forEach(fac=>{
+    if(!map[fac]) map[fac] = CAPACITY_DATA[fac] || 0;
+  });
+  return map;
+}
+
 function capacityMapForDates(dates){
+  if(RAW_CAPACITY.some(r=>r.source==="pivot")) return capacityFromPivot();
   const out = Object.fromEntries(CAPACITY_ORDER.map(f=>[f,0]));
   const days = dates.length ? dates : [null];
   days.forEach(d=>{
@@ -1254,30 +1186,73 @@ async function fetchCsv(url){
   }
 }
 
+function parsePivotCapacity(text){
+  if(typeof Papa === "undefined" || !text) return [];
+  const parsed = Papa.parse(text, {header:false, skipEmptyLines:true});
+  const rows = [];
+  parsed.data.forEach(cells=>{
+    const line = (cells||[]).map(c => (c==null ? "" : String(c)).trim());
+    const facRaw = line[0] || "";
+    if(!/^CAIID\d+/i.test(facRaw)) return;
+    const facility = normalizeFacilityName(facRaw);
+    if(!facility) return;
+    let capRaw = line[5] || "";
+    if(!capRaw || /%/.test(capRaw)){
+      for(let i=line.length-1;i>=1;i--){
+        if(!line[i] || /%/.test(line[i])) continue;
+        if(/[\d]/.test(line[i])){ capRaw = line[i]; break; }
+      }
+    }
+    const capacity = parseInt(String(capRaw).replace(/,/g,""),10);
+    if(!capacity) return;
+    rows.push({ date:"", facility, capacity, source:"pivot" });
+  });
+  return rows;
+}
+
 async function loadCapacitySheet(){
-  if(typeof Papa === "undefined") return [];
+  if(typeof Papa === "undefined") return lastCapacityRows;
+  for(const url of PIVOT_CSV_URLS){
+    try{
+      const rows = parsePivotCapacity(await fetchCsv(url));
+      if(rows.length){
+        lastCapacityRows = rows;
+        lastCapacityAt = Date.now();
+        return rows;
+      }
+    }catch(err){
+      console.warn("Pivot capacity fetch failed:", url, err);
+    }
+  }
+  if(lastCapacityRows.some(r=>r.source==="pivot")) return lastCapacityRows;
+  if(lastCapacityRows.length && (Date.now()-lastCapacityAt) < CAPACITY_REFRESH_MS){
+    return lastCapacityRows;
+  }
   for(const url of CAPACITY_CSV_URLS){
     try{
       const text = await fetchCsv(url);
       const parsed = Papa.parse(text, {header:true, skipEmptyLines:true});
       const rows = parsed.data.map(normalizeCapacityRow).filter(Boolean);
-      if(rows.length) return rows;
+      if(rows.length){
+        lastCapacityRows = rows;
+        lastCapacityAt = Date.now();
+        return rows;
+      }
     }catch(err){
       console.warn("Capacity sheet fetch failed:", url, err);
     }
   }
-  return [];
+  return lastCapacityRows;
 }
 
 // محول الشيت. InboundClient بيناديه لما mode=sheet. متستدعوهوش من الأزرار مباشرة.
 window.InboundSheetAdapter = {
   async load(){
-    const text = await fetchCsv(CSV_BASE_URL);
     if(typeof Papa === "undefined") throw new Error("CSV parser unavailable");
+    const [text, capacity] = await Promise.all([fetchCsv(CSV_BASE_URL), loadCapacitySheet()]);
     const parsed = Papa.parse(text, {header:true, skipEmptyLines:true});
     const receipts = parsed.data.map(normalizeRow).filter(Boolean);
     if(!receipts.length) throw new Error("No data rows found in sheet");
-    const capacity = await loadCapacitySheet();
     return {
       source:"sheet",
       updatedAt: new Date().toISOString(),
@@ -1299,19 +1274,24 @@ function applyBackendSettings(settings){
 }
 
 let refreshTimer = null;
+let refreshMsCurrent = 0;
 let loadInFlight = false;
 function startAutoRefresh(ms){
+  ms = ms || AUTO_REFRESH_MS;
+  if(refreshTimer && refreshMsCurrent === ms) return;
   if(refreshTimer) clearInterval(refreshTimer);
-  refreshTimer = setInterval(loadData, ms || AUTO_REFRESH_MS);
+  refreshMsCurrent = ms;
+  refreshTimer = setInterval(loadData, ms);
 }
 
 // تحميل آمن: لو الشيت فشل، آخر بيانات تفضل على الشاشة. متخلّيش الزرار disabled للأبد.
-async function loadData(){
+async function loadData(opts){
   if(loadInFlight) return;
   loadInFlight = true;
+  const manual = !!(opts && opts.manual);
   const btn = el("btnRefresh");
   const hadData = RAW_DATA.length > 0;
-  if(btn) btn.disabled = true;
+  if(btn && manual) btn.disabled = true;
   if(!hadData) setLiveBadge("loading");
   try{
     if(!window.InboundClient) throw new Error("Inbound client is not loaded");
@@ -1420,20 +1400,17 @@ function applyInitialFilters(){
   if(datesInitialized) return;
   datesInitialized = true;
   const params = new URLSearchParams(location.search);
-  const prefs = readPrefs();
+  const today = todayYmd();
   const dates = sheetDates();
-  const latest = dates[dates.length-1] || "";
   const one = params.get("date") || "";
-  let from = params.get("from") || one || prefs.from || latest;
-  let to = params.get("to") || one || prefs.to || latest;
-  if(from && !dates.includes(from)) from = latest;
-  if(to && !dates.includes(to)) to = latest;
-  const fac = params.get("facility") || prefs.facility || "";
+  let from = params.get("from") || one || today;
+  let to = params.get("to") || one || today;
   const fromEl = el("fDateFrom");
   const toEl = el("fDateTo");
   const facEl = el("fFacility");
   if(from && fromEl){ ensureDateOption(fromEl, from); fromEl.value = from; }
   if(to && toEl){ ensureDateOption(toEl, to); toEl.value = to; }
+  const fac = params.get("facility") || "";
   if(fac && facEl && [...facEl.options].some(o=>o.value===fac)) facEl.value = fac;
 }
 
@@ -1574,12 +1551,12 @@ function initFilterEvents(){
   on("fSearch", "input", render);
   on("tableSearch", "input", ()=>{ tablePage = 0; renderTableOnly(); });
   on("btnReset", "click", ()=>{
-    ["fFacility","fEmp","fStatus","fDateFrom","fDateTo","fSearch","tableSearch"].forEach(id=>{
+    ["fFacility","fEmp","fStatus","fSearch","tableSearch"].forEach(id=>{
       if(el(id)) el(id).value = "";
     });
     vendorFilter = "";
     exceptionType = "";
-    onFiltersChanged();
+    applyDateChip("today");
   });
   const wrap = document.querySelector(".wrap");
   if(wrap && !wrap.dataset.opsBound){
@@ -1604,7 +1581,7 @@ function initFilterEvents(){
       }
     });
   }
-  on("btnRefresh", "click", loadData);
+  on("btnRefresh", "click", ()=>loadData({manual:true}));
   on("btnExport", "click", exportExcel);
   on("btnPrint", "click", ()=>window.print());
   on("btnCopyLink", "click", ()=>{
@@ -1692,7 +1669,7 @@ function renderFloor(){
       ? (shift.latest && shift.date!==todayYmd() ? t("floorLatest",{date:enDate(shift.date)}) : t("floorShift",{date:enDate(shift.date)}))
       : t("floorNone");
   }
-  const received = rows.filter(r=>/received/i.test(r.status)).length;
+  const received = rows.filter(isReceivedRow).length;
   const progress = rows.length - received;
   const sorted = [...rows].sort((a,b)=>(timeToMinutes(b.arrival)??-1)-(timeToMinutes(a.arrival)??-1));
   const last = sorted[0];
@@ -1720,17 +1697,31 @@ function renderFloor(){
 }
 
 // ===================== KPIs =====================
-// رقم KPI جديد: ضيف كارت في HTML بنفس شكل .kpi بعدين setText هنا
+// استلام فعلي فقط: كمية > 0، أو الحالة مكتوبة Received/Done.
+// الحالة الفاضية و Dock و Arrive من غير كمية مش استلام.
+function isReceivedRow(r){
+  if((r.qty||0) > 0) return true;
+  return /^(received|done)$/i.test((r.status||"").trim());
+}
+function asnKey(r){
+  return (r.asn||"").trim() || (r.ro||"").trim() || [r.vendor,r.facility,r.date].join("|");
+}
 function renderKPIs(data){
-  const totalQty = data.reduce((s,r)=>s+r.qty,0);
-  const vendors = new Set(data.map(r=>r.vendor)).size;
-  const avg = data.length ? Math.round(totalQty/data.length) : 0;
+  const rows = data.filter(r => r.asn || r.vendor);
+  const plannedAsn = new Set(rows.map(asnKey));
+  const receivedAsn = new Set(rows.filter(isReceivedRow).map(asnKey));
+  const plannedQty = rows.reduce((s,r)=>s+(r.totalRo||0),0);
+  const receivedQty = rows.reduce((s,r)=>s+(r.qty||0),0);
+  const vendors = new Set(rows.map(r=>(r.vendor||"").trim()).filter(Boolean));
+  const vendorsGot = new Set(rows.filter(isReceivedRow).map(r=>(r.vendor||"").trim()).filter(Boolean));
 
-  setText("kpiShipments", fmt(data.length));
-  setText("kpiQty", fmt(totalQty));
-  setText("kpiVendors", fmt(vendors));
-  setText("kpiAvg", fmt(avg));
-  setText("metaCount", fmt(data.length));
+  setText("kpiAsn", fmt(receivedAsn.size)+" / "+fmt(plannedAsn.size));
+  setText("kpiAsnSub", t("kpiAsnSub",{got:fmt(receivedAsn.size), need:fmt(plannedAsn.size)}));
+  setText("kpiQty", fmt(receivedQty)+" / "+fmt(plannedQty));
+  setText("kpiQtySub", t("kpiQtySub",{got:fmt(receivedQty), need:fmt(plannedQty)}));
+  setText("kpiVendors", fmt(vendors.size));
+  setText("kpiVendorsGot", fmt(vendorsGot.size));
+  setText("metaCount", fmt(receivedAsn.size)+" / "+fmt(plannedAsn.size));
   const uniqueDates = [...new Set(data.map(r=>r.date))].filter(Boolean).sort();
   const metaDateEl = el("metaDate");
   if(!metaDateEl) return;
@@ -1795,15 +1786,46 @@ function chartViewKey(data){
   const fac = (el("fFacility") && el("fFacility").value) || "";
   const emp = (el("fEmp") && el("fEmp").value) || "";
   const status = (el("fStatus") && el("fStatus").value) || "";
-  const core = (data||[]).map(r => [r.date,r.asn,r.qty,r.facility,r.emp,r.vendor,r.status].join("|")).join(";");
+  const core = (data||[]).map(r => [r.date,r.asn,r.qty,r.totalRo,r.facility,r.emp,r.vendor,r.status].join("|")).join(";");
   return [theme, currentLang, from, to, fac, emp, status, vendorFilter, core].join("::");
 }
 
+function upsertChart(name, canvas, config){
+  const vendors = config.$vendors;
+  const existing = charts[name];
+  if(existing){
+    existing.data.labels = config.data.labels;
+    existing.data.datasets.forEach((ds,i)=>{
+      const next = config.data.datasets[i];
+      if(!next) return;
+      ds.data = next.data;
+      ds.label = next.label;
+      if(next.backgroundColor) ds.backgroundColor = next.backgroundColor;
+    });
+    if(vendors) existing.$vendors = vendors;
+    existing.update();
+    return existing;
+  }
+  const chart = new Chart(canvas, {
+    type: config.type,
+    data: config.data,
+    options: config.options
+  });
+  if(vendors) chart.$vendors = vendors;
+  charts[name] = chart;
+  return chart;
+}
+
 function renderCharts(data){
+  const skin = (document.documentElement.getAttribute("data-theme")||"light")+":"+currentLang;
+  if(skin !== lastChartSkin){
+    destroyCharts();
+    lastChartSkin = skin;
+    lastChartKey = "";
+  }
   const key = chartViewKey(data);
-  if(key === lastChartKey && charts.facilityQty && charts.accuracy) return;
+  if(key === lastChartKey && charts.facilityQty && charts.topVendors) return;
   lastChartKey = key;
-  destroyCharts();
   if(typeof Chart === "undefined") return;
   applyChartDefaults();
   const tc = themeColors();
@@ -1812,23 +1834,20 @@ function renderCharts(data){
     return node && typeof node.getContext === "function" ? node : null;
   };
   const chartFacilityQty = can("chartFacilityQty");
-  const chartFacilityShare = can("chartFacilityShare");
   const chartTopVendors = can("chartTopVendors");
-  const chartSku = can("chartSku");
-  const chartEmp = can("chartEmp");
-  const chartHourly = can("chartHourly");
-  if(!chartFacilityQty || !chartFacilityShare || !chartTopVendors || !chartSku || !chartEmp || !chartHourly) return;
+  if(!chartFacilityQty && !chartTopVendors) return;
 
-  // ---- Facility aggregates ----
   const byFacilityQty = {};
-  const byFacilityCount = {};
+  const byVendorQty = {};
   data.forEach(r=>{
-    byFacilityQty[r.facility] = (byFacilityQty[r.facility]||0)+r.qty;
-    byFacilityCount[r.facility] = (byFacilityCount[r.facility]||0)+1;
+    const qty = r.qty || 0;
+    if(r.facility) byFacilityQty[r.facility] = (byFacilityQty[r.facility]||0)+qty;
+    if(r.vendor && qty) byVendorQty[r.vendor] = (byVendorQty[r.vendor]||0)+qty;
   });
   const facLabels = Object.keys(byFacilityQty).sort();
+  const topVendorsQty = Object.entries(byVendorQty).sort((a,b)=>b[1]-a[1]).slice(0,10);
 
-  charts.facilityQty = new Chart(chartFacilityQty, {
+  if(chartFacilityQty) upsertChart("facilityQty", chartFacilityQty, {
     type:"bar",
     data:{
       labels: facLabels,
@@ -1842,6 +1861,7 @@ function renderCharts(data){
     },
     options:{
       responsive:true, maintainAspectRatio:false,
+      animation:{duration:450},
       onClick:(_e, els, chart)=>{
         if(!els.length) return;
         applyClickFilter("facility", chart.data.labels[els[0].index]);
@@ -1855,43 +1875,9 @@ function renderCharts(data){
     }
   });
 
-  charts.facilityShare = new Chart(chartFacilityShare, {
-    type:"doughnut",
-    data:{
-      labels: facLabels,
-      datasets:[{
-        data: facLabels.map(f=>byFacilityCount[f]),
-        backgroundColor: facLabels.map((_,i)=>COLORS[i%COLORS.length]),
-        borderColor:tc.panel,
-        borderWidth:3,
-      }]
-    },
-    options:{
-      responsive:true, maintainAspectRatio:false,
-      cutout:"62%",
-      onClick:(_e, els, chart)=>{
-        if(!els.length) return;
-        applyClickFilter("facility", chart.data.labels[els[0].index]);
-      },
-      plugins:{
-        legend:{ position:"bottom", labels:{boxWidth:10, padding:14, font:{size:11}} },
-        tooltip:{ callbacks:{ label:(c)=>t("tooltipShare",{label:c.label, n:c.parsed}) } }
-      }
-    }
-  });
-
-  // ---- Top vendors by quantity ----
-  const byVendorQty = {};
-  const byVendorSku = {};
-  data.forEach(r=>{
-    byVendorQty[r.vendor] = (byVendorQty[r.vendor]||0)+r.qty;
-    byVendorSku[r.vendor] = (byVendorSku[r.vendor]||0)+(r.product||0);
-  });
-  const topVendorsQty = Object.entries(byVendorQty).sort((a,b)=>b[1]-a[1]).slice(0,10);
-  const topVendorsSku = Object.entries(byVendorSku).sort((a,b)=>b[1]-a[1]).slice(0,10);
-
-  charts.topVendors = new Chart(chartTopVendors, {
+  if(chartTopVendors) upsertChart("topVendors", chartTopVendors, {
     type:"bar",
+    $vendors: topVendorsQty,
     data:{
       labels: topVendorsQty.map(v=>v[0].length>28 ? v[0].slice(0,28)+"…" : v[0]),
       datasets:[{
@@ -1905,129 +1891,17 @@ function renderCharts(data){
     options:{
       indexAxis:"y",
       responsive:true, maintainAspectRatio:false,
-      onClick:(_e, els)=>{
+      animation:{duration:450},
+      onClick:(_e, els, chart)=>{
         if(!els.length) return;
-        applyClickFilter("vendor", topVendorsQty[els[0].index][0]);
+        const list = chart.$vendors || [];
+        if(list[els[0].index]) applyClickFilter("vendor", list[els[0].index][0]);
       },
       plugins:{ legend:{display:false},
         tooltip:{ callbacks:{ label:(c)=>fmt(c.parsed.x)+" "+t("units") } } },
       scales:{
         x:{ grid:{color:tc.grid}, ticks:{callback:v=>fmt(v)} },
         y:{ grid:{display:false}, ticks:{font:{size:11}} }
-      }
-    }
-  });
-
-  charts.sku = new Chart(chartSku, {
-    type:"bar",
-    data:{
-      labels: topVendorsSku.map(v=>v[0].length>26 ? v[0].slice(0,26)+"…" : v[0]),
-      datasets:[{
-        label:t("skuCount"),
-        data: topVendorsSku.map(v=>v[1]),
-        backgroundColor:"#141414",
-        borderRadius:6,
-        maxBarThickness:22,
-      }]
-    },
-    options:{
-      indexAxis:"y",
-      responsive:true, maintainAspectRatio:false,
-      onClick:(_e, els)=>{
-        if(!els.length) return;
-        applyClickFilter("vendor", topVendorsSku[els[0].index][0]);
-      },
-      plugins:{ legend:{display:false},
-        tooltip:{ callbacks:{ label:(c)=>fmt(c.parsed.x)+" "+t("skuCount") } } },
-      scales:{
-        x:{ grid:{color:tc.grid}, ticks:{stepSize:1} },
-        y:{ grid:{display:false}, ticks:{font:{size:11}} }
-      }
-    }
-  });
-
-  // ---- Employee performance ----
-  const byEmpCount = {};
-  const byEmpQty = {};
-  data.forEach(r=>{
-    byEmpCount[r.emp] = (byEmpCount[r.emp]||0)+1;
-    byEmpQty[r.emp] = (byEmpQty[r.emp]||0)+r.qty;
-  });
-  const empLabels = Object.keys(byEmpCount).sort((a,b)=>byEmpCount[b]-byEmpCount[a]);
-
-  charts.emp = new Chart(chartEmp, {
-    type:"bar",
-    data:{
-      labels: empLabels,
-      datasets:[
-        {
-          label:t("axisReceipts"),
-          data: empLabels.map(e=>byEmpCount[e]),
-          backgroundColor:"#f5e023",
-          borderRadius:6,
-          yAxisID:"y",
-          maxBarThickness:26,
-        },
-        {
-          label:t("qtyReceived"),
-          data: empLabels.map(e=>byEmpQty[e]),
-          backgroundColor:"#db3332",
-          borderRadius:6,
-          yAxisID:"y1",
-          maxBarThickness:26,
-        }
-      ]
-    },
-    options:{
-      responsive:true, maintainAspectRatio:false,
-      onClick:(_e, els, chart)=>{
-        if(!els.length) return;
-        applyClickFilter("emp", chart.data.labels[els[0].index]);
-      },
-      plugins:{
-        legend:{position:"bottom", labels:{boxWidth:10, font:{size:11}}},
-        tooltip:{ callbacks:{ label:(c)=> c.dataset.yAxisID==="y1"
-            ? t("tooltipQty",{n:fmt(c.parsed.y)})
-            : t("tooltipReceipts",{n:fmt(c.parsed.y)}) } }
-      },
-      scales:{
-        y:{ position:"left", grid:{color:tc.grid}, ticks:{stepSize:1}, title:{display:true,text:t("axisReceipts"),font:{size:10}} },
-        y1:{ position:"right", grid:{display:false}, ticks:{callback:v=>fmt(v)}, title:{display:true,text:t("qtyReceived"),font:{size:10}} },
-        x:{ grid:{display:false}, ticks:{font:{size:10}} }
-      }
-    }
-  });
-
-  // ---- Hourly distribution ----
-  const hourCounts = new Array(24).fill(0);
-  data.forEach(r=>{
-    const mins = timeToMinutes(r.arrival);
-    if(mins!==null) hourCounts[Math.floor(mins/60)]++;
-  });
-  const activeHours = [];
-  for(let h=6; h<20; h++) activeHours.push(h);
-
-  charts.hourly = new Chart(chartHourly, {
-    type:"line",
-    data:{
-      labels: activeHours.map(hourLabel),
-      datasets:[{
-        label:t("hourlySeries"),
-        data: activeHours.map(h=>hourCounts[h]),
-        borderColor:"#db3332",
-        backgroundColor:"rgba(219,51,50,.10)",
-        fill:true,
-        tension:.35,
-        pointRadius:3,
-        pointBackgroundColor:"#db3332",
-      }]
-    },
-    options:{
-      responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{display:false} },
-      scales:{
-        y:{ grid:{color:tc.grid}, ticks:{stepSize:1} },
-        x:{ grid:{display:false}, ticks:{font:{size:10}} }
       }
     }
   });
@@ -2046,7 +1920,8 @@ function renderCapacity(data){
   const hasDatedCapacity = RAW_CAPACITY.some(r=>r.date);
   const capDesc = document.getElementById("capDesc");
   if(capDesc){
-    if(selectedDate) capDesc.textContent = t("capOne",{date:enDate(selectedDate)});
+    if(RAW_CAPACITY.some(r=>r.source==="pivot")) capDesc.textContent = t("capPivot");
+    else if(selectedDate) capDesc.textContent = t("capOne",{date:enDate(selectedDate)});
     else if(uniqueDates.length===1) capDesc.textContent = t("capOne",{date:enDate(uniqueDates[0])});
     else if(uniqueDates.length>1) capDesc.textContent = t("capMany",{n:uniqueDates.length, from:enDate(uniqueDates[0]), to:enDate(uniqueDates[uniqueDates.length-1])});
     else capDesc.textContent = t("capDescDefault");
@@ -2124,7 +1999,7 @@ function renderTable(data){
   const tbody = el("tableBody");
   if(!tbody) return;
   if(!rows.length){
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="12">${t("empty")}</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="9">${t("empty")}</td></tr>`;
     renderPager(0);
     return;
   }
@@ -2135,17 +2010,14 @@ function renderTable(data){
   tbody.innerHTML = pageRows.map(r=>`
     <tr>
       <td>${escapeHtml(enDate(r.date))}</td>
-      <td class="clickable" data-filter-vendor="${escapeHtml(r.vendor)}" title="${t("clickFilter")}">${escapeHtml(r.vendor)}</td>
-      <td class="mono">${escapeHtml(r.ro)}</td>
+      <td>${escapeHtml(r.vendor)}</td>
       <td class="mono">${escapeHtml(r.asn)}</td>
-      <td><span class="facility-tag clickable" data-filter-fac="${escapeHtml(r.facility)}" title="${t("clickFilter")}">${escapeHtml(r.facility)}</span></td>
+      <td><span class="facility-tag">${escapeHtml(r.facility)}</span></td>
+      <td class="qty">${fmt(r.totalRo||0)}</td>
       <td class="qty">${fmt(r.qty)}</td>
-      <td><span class="pill received">${escapeHtml(r.status)}</span></td>
-      <td>${escapeHtml(r.accuracy || "—")}</td>
+      <td><span class="pill received">${escapeHtml(r.status || "—")}</span></td>
+      <td>${escapeHtml(r.emp)}</td>
       <td>${escapeHtml(r.arrival ?? "—")}</td>
-      <td class="clickable" data-filter-emp="${escapeHtml(r.emp)}" title="${t("clickFilter")}">${escapeHtml(r.emp)}</td>
-      <td>${escapeHtml(r.cars)}</td>
-      <td>${escapeHtml(r.product ?? "—")}</td>
     </tr>
   `).join("");
 
@@ -2401,10 +2273,10 @@ function renderAccuracy(data){
 // تصدير CSV UTF-8. لو ضفت عمود في الجدول، ضيفه في headers و cells
 function exportExcel(){
   const data = getFiltered();
-  const headers = ["Date","Vendor","RO","ASN","Facility","Quantity","Status","Schedule","Arrival","Employee","Cars","SKU"];
+  const headers = ["Date","Vendor","RO","ASN","Facility","Total RO","Quantity","Status","Schedule","Arrival","Employee","Cars","SKU"];
   const lines = [headers.join(",")];
   data.forEach(r=>{
-    const cells = [r.date,r.vendor,r.ro,r.asn,r.facility,r.qty,r.status,r.accuracy||"",r.arrival||"",r.emp,r.cars,r.product??""];
+    const cells = [r.date,r.vendor,r.ro,r.asn,r.facility,r.totalRo||0,r.qty,r.status,r.accuracy||"",r.arrival||"",r.emp,r.cars,r.product??""];
     lines.push(cells.map(v=>{
       const s = String(v??"");
       return /[",\n]/.test(s) ? `"${s.replaceAll('"','""')}"` : s;
@@ -2424,18 +2296,9 @@ function render(){
   try{
     const data = getFiltered();
     syncDateChips();
-    renderFilterChips();
-    renderFloor();
     renderKPIs(data);
-    renderAlerts(data);
-    renderCompare(data);
-    renderQuality(data);
-    renderExceptions(data);
-    renderRank(data);
     renderCapacity(data);
-    renderForecast(data);
     renderCharts(data);
-    renderAccuracy(data);
     renderTable(data);
   }catch(err){
     console.warn("Dashboard render recovered from an error:", err);
@@ -2455,6 +2318,9 @@ try{
 loadData();
 startAutoRefresh(AUTO_REFRESH_MS);
 window.addEventListener("focus", loadData);
+document.addEventListener("visibilitychange", ()=>{
+  if(document.visibilityState === "visible") loadData();
+});
 </script>
 </body>
 </html>

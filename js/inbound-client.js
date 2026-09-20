@@ -16,7 +16,7 @@
  */
 (function (global) {
   const DEFAULT_SETTINGS = {
-    refreshMs: 30000,
+    refreshMs: 8000,
     allowPublicRead: true,
     features: { export: true, compare: true, print: true }
   };
