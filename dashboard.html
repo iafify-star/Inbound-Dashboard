@@ -317,6 +317,11 @@
     border-radius:999px;padding:9px 14px;font-size:13px;cursor:pointer;font-family:inherit;
   }
   .btn-ghost:hover{border-color:var(--yellow-dark);}
+  .btn-report{
+    background:var(--yellow);border:none;color:var(--ink);font-weight:800;
+    border-radius:999px;padding:9px 16px;font-size:13px;cursor:pointer;font-family:inherit;
+  }
+  .btn-report:hover{background:var(--yellow-dark);}
   .forecast-box{margin-top:14px;padding:12px;border:1px dashed var(--border);border-radius:12px;background:var(--panel-2);}
   .forecast-box b{color:var(--black);}
   .pager{display:flex;justify-content:center;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px;font-size:13px;color:var(--muted);}
@@ -334,7 +339,7 @@
     .brand h1{font-size:17px;line-height:1.25;}
     .brand p{font-size:12px;}
     .top-meta{width:100%;gap:8px;}
-    .badge,.btn-theme,.btn-lang,.btn-ghost,.btn-refresh{
+    .badge,.btn-theme,.btn-lang,.btn-ghost,.btn-report,.btn-refresh{
       font-size:12px;padding:8px 12px;flex:1 1 calc(50% - 8px);justify-content:center;text-align:center;
     }
     .btn-refresh{flex:1 1 100%;}
@@ -377,7 +382,7 @@
   }
   @media print{
     body{background:#fff;color:#111;}
-    .filters,.top-meta button,.search,.btn-ghost,.btn-theme,.btn-lang,.btn-refresh,.mobile-hint,.date-chips,.chip-bar,.pager{display:none !important;}
+    .filters,.top-meta button,.search,.btn-ghost,.btn-report,.btn-theme,.btn-lang,.btn-refresh,.mobile-hint,.date-chips,.chip-bar,.pager{display:none !important;}
     .panel,.kpi,.cmp{break-inside:avoid;box-shadow:none;}
     .chart-box,.chart-box.tall{height:220px;}
   }
@@ -401,6 +406,7 @@
       <div class="badge">🕒 <span data-i18n="updated">Updated:</span> <b id="metaUpdated">-</b></div>
       <button class="btn-lang" id="btnLang" type="button" aria-label="Switch language">العربية</button>
       <button class="btn-theme" id="btnTheme" type="button" aria-label="Toggle color theme">🌙 Dark</button>
+      <button class="btn-report" id="btnDailyReport" type="button" data-i18n="dailyReport">Daily Report</button>
       <button class="btn-ghost" id="btnExport" data-i18n="exportExcel">Export Excel</button>
       <button class="btn-refresh" id="btnRefresh" data-i18n="refresh">🔄 Refresh</button>
     </div>
@@ -704,6 +710,9 @@ const I18N = {
     savePref:"Save as default",
     prefSaved:"Default filters saved",
     exportExcel:"Export Excel",
+    dailyReport:"Daily Report",
+    dailyReportEmpty:"No receiving rows for this date.",
+    dailyReportPopup:"Allow pop-ups to open the daily report.",
     printReport:"Print / PDF",
     accTitle:"Supplier schedule accuracy",
     accDesc:"How inbound receipts matched the planned schedule",
@@ -870,6 +879,9 @@ const I18N = {
     savePref:"حفظ كافتراضي",
     prefSaved:"تم حفظ الفلاتر الافتراضية",
     exportExcel:"تصدير Excel",
+    dailyReport:"تقرير يومي",
+    dailyReportEmpty:"مفيش صفوف استلام في التاريخ ده.",
+    dailyReportPopup:"اسمح بالنوافذ المنبثقة عشان التقرير يفتح.",
     printReport:"طباعة / PDF",
     accTitle:"دقة التزام المورد بالجدول",
     accDesc:"هل الاستلامات جاءت حسب الجدول المخطط",
@@ -977,6 +989,13 @@ function initLang(){
 // أي صف CAIID03 أو CAIID04 بيتحول لـ CAIID03+04 في الفلاتر والشارت والجدول.
 // لو هتدمج مستودعين جداد: ضيفهم هنا + في CAPACITY_ORDER تحت.
 const FACILITY_MERGE = { "CAIID03":"CAIID03+04", "CAIID04":"CAIID03+04" };
+const FACILITY_SPECIALTY = {
+  "CAIID01": "Ambient",
+  "CAIID03+04": "Chilled",
+  "CAIID05": "Frozen",
+  "CAIID06": "X-Dock",
+  "CAIID07": "X-Dock",
+};
 
 // توحيد أسماء الموظفين: نفس الشخص بأسماء مختلفة يتلمّ في اسم واحد.
 const EMP_ALIASES = {
@@ -1964,6 +1983,7 @@ function initFilterEvents(){
     });
   }
   on("btnRefresh", "click", ()=>loadData({manual:true}));
+  on("btnDailyReport", "click", openDailyReport);
   on("btnExport", "click", exportExcel);
   on("btnPrint", "click", ()=>window.print());
   on("btnCopyLink", "click", ()=>{
@@ -2970,6 +2990,207 @@ function exportExcel(){
   a.download = `inbound-receiving-${new Date().toISOString().slice(0,10)}.csv`;
   a.click();
   URL.revokeObjectURL(a.href);
+}
+
+// شكل تقرير المدير المحفوظ. الزرار بيولد نفس الصفحة من بيانات اليوم.
+function reportDate(){
+  const {from, to} = getDateBounds();
+  if(from && to && from===to) return from;
+  const today = todayYmd();
+  if(RAW_DATA.some(r=>r.date===today)) return today;
+  const dates = [...new Set(RAW_DATA.map(r=>r.date))].filter(Boolean).sort();
+  return dates[dates.length-1] || today;
+}
+function reportDateLabel(iso){
+  const m = (iso||"").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(!m) return iso || "";
+  const dt = new Date(Number(m[1]), Number(m[2])-1, Number(m[3]));
+  return dt.toLocaleDateString("en-GB", {weekday:"long", day:"numeric", month:"long", year:"numeric"});
+}
+function facilityReportName(fac){
+  const spec = FACILITY_SPECIALTY[fac];
+  return spec ? `${fac} ${spec}` : fac;
+}
+function reportPct(a, b){
+  return b ? Math.round(a / b * 100) : 0;
+}
+function buildDailyReportHtml(day, data){
+  const nfmt = n => (Number(n)||0).toLocaleString("en-US");
+  const rows = (data||[]).filter(r => r.asn || r.vendor);
+  const plannedAsn = new Set(rows.map(asnKey));
+  const receivedAsn = new Set(rows.filter(isReceivedRow).map(asnKey));
+  const plannedQty = rows.reduce((s,r)=>s+(r.totalRo||0),0);
+  const receivedQty = rows.reduce((s,r)=>s+(r.qty||0),0);
+  const vendors = new Set(rows.map(r=>(r.vendor||"").trim()).filter(Boolean));
+  const vendorsGot = new Set(rows.filter(isReceivedRow).map(r=>(r.vendor||"").trim()).filter(Boolean));
+  const capMap = capacityMapForDates([day]);
+  const byFac = {};
+  rows.forEach(r=>{
+    const fac = r.facility;
+    if(!fac) return;
+    if(!byFac[fac]) byFac[fac] = {qty:0, ro:0, asn:new Set(), got:new Set()};
+    byFac[fac].qty += r.qty||0;
+    byFac[fac].ro += r.totalRo||0;
+    byFac[fac].asn.add(asnKey(r));
+    if(isReceivedRow(r)) byFac[fac].got.add(asnKey(r));
+  });
+  const facs = [...new Set([...CAPACITY_ORDER, ...Object.keys(capMap), ...Object.keys(byFac)])]
+    .filter(fac => (byFac[fac] && (byFac[fac].asn.size || byFac[fac].qty || byFac[fac].ro)) || (capMap[fac]||0) > 0);
+  facs.sort((a,b)=>{
+    const ia = CAPACITY_ORDER.indexOf(a), ib = CAPACITY_ORDER.indexOf(b);
+    if(ia>=0 && ib>=0) return ia-ib;
+    if(ia>=0) return -1;
+    if(ib>=0) return 1;
+    return a.localeCompare(b);
+  });
+  let totalCap = 0;
+  const facRows = facs.map(fac=>{
+    const v = byFac[fac] || {qty:0, ro:0, asn:new Set(), got:new Set()};
+    const cap = capMap[fac] || 0;
+    totalCap += cap;
+    const pct = reportPct(v.qty, cap);
+    const cls = pct>=100 ? "hot" : pct>0 ? "ok" : "";
+    return `<tr>
+      <td><span class="code">${escapeHtml(fac)}</span>${FACILITY_SPECIALTY[fac] ? " "+escapeHtml(FACILITY_SPECIALTY[fac]) : ""}</td>
+      <td class="num">${nfmt(v.got.size)} / ${nfmt(v.asn.size)}</td>
+      <td class="num">${nfmt(v.qty)} / ${nfmt(v.ro)}</td>
+      <td class="num">${nfmt(v.qty)} / ${nfmt(cap)}</td>
+      <td class="num ${cls}">${pct}%</td>
+    </tr>`;
+  }).join("");
+  const asnPct = reportPct(receivedAsn.size, plannedAsn.size);
+  const qtyPct = reportPct(receivedQty, plannedQty);
+  const venPct = reportPct(vendorsGot.size, vendors.size);
+  const capPct = reportPct(receivedQty, totalCap);
+  const logo = new URL("assets/noon-minutes-logo.png", location.href).href;
+  return `<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8" />
+<title>Daily Receiving Report — ${escapeHtml(reportDateLabel(day))}</title>
+<style>
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #fff; }
+  body {
+    width: 210mm; min-height: 297mm;
+    font-family: "Segoe UI", Arial, sans-serif;
+    color: #141414; font-size: 10.5px; line-height: 1.35;
+  }
+  .page { width: 210mm; min-height: 297mm; display: flex; flex-direction: column; }
+  .hero {
+    background: #f5e023; padding: 11mm 12mm 9mm;
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  }
+  .hero img { height: 52px; width: auto; display: block; background: #f5e023; }
+  .hero-text { text-align: left; }
+  .hero-text .team { font-size: 11px; font-weight: 800; }
+  .hero-text h1 { margin: 3px 0 2px; font-size: 24px; font-weight: 800; }
+  .hero-text .when { font-size: 12px; font-weight: 600; color: #3a3a3a; }
+  .body { padding: 10mm 12mm; flex: 1; }
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .kpi { padding: 10px; border-radius: 8px; min-height: 92px; }
+  .kpi .l { font-size: 11px; font-weight: 800; }
+  .kpi .v { font-size: 22px; font-weight: 800; margin-top: 8px; letter-spacing: -.02em; }
+  .kpi .s { font-size: 10px; margin-top: 3px; font-weight: 700; }
+  .kpi.yellow { background: #fff6b0; }
+  .kpi.red { background: #fde8e8; }
+  .kpi.dark { background: #141414; color: #fff; }
+  .kpi.dark .s { color: #f5e023; }
+  .kpi.green { background: #e4f7f2; }
+  .kpi.green .s { color: #18795f; }
+  h2 {
+    margin: 18px 0 10px; font-size: 12px; font-weight: 800;
+    background: #141414; color: #fff; padding: 6px 10px; border-radius: 6px;
+  }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 8px; border-bottom: 1px solid #eee; text-align: left; vertical-align: middle; }
+  th { font-size: 9.5px; font-weight: 800; color: #555; background: #f7f7f8; }
+  td { font-size: 10.5px; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .code { font-family: Consolas, "Courier New", monospace; font-size: 10px; font-weight: 800; margin-right: 6px; }
+  tr.total td { font-weight: 800; background: #fff6b0; border-bottom: none; }
+  .ok { color: #18795f; font-weight: 800; }
+  .hot { color: #db3332; font-weight: 800; }
+  .foot {
+    background: #141414; color: #fff; padding: 7px 12mm; margin-top: auto;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 10px; font-weight: 700;
+  }
+  .foot .mark {
+    background: #f5e023; color: #141414; padding: 2px 8px; border-radius: 4px;
+    font-size: 9px; font-weight: 800; letter-spacing: .04em;
+  }
+  @media print { body { width: auto; min-height: auto; } .page { width: auto; } }
+</style>
+</head>
+<body>
+  <div class="page">
+    <div class="hero">
+      <img src="${escapeHtml(logo)}" alt="noon minutes" />
+      <div class="hero-text">
+        <div class="team">Inbound Team</div>
+        <h1>Daily Receiving Report</h1>
+        <div class="when">${escapeHtml(reportDateLabel(day))}</div>
+      </div>
+    </div>
+    <div class="body">
+      <div class="kpis">
+        <div class="kpi yellow"><div class="l">ASN</div><div class="v">${nfmt(receivedAsn.size)} / ${nfmt(plannedAsn.size)}</div><div class="s">${asnPct}% received</div></div>
+        <div class="kpi red"><div class="l">Quantity</div><div class="v">${nfmt(receivedQty)} / ${nfmt(plannedQty)}</div><div class="s">${qtyPct}% of planned</div></div>
+        <div class="kpi dark"><div class="l">Vendors</div><div class="v">${nfmt(vendorsGot.size)} / ${nfmt(vendors.size)}</div><div class="s">${venPct}% received</div></div>
+        <div class="kpi green"><div class="l">Capacity</div><div class="v">${nfmt(receivedQty)} / ${nfmt(totalCap)}</div><div class="s">${capPct}% of daily capacity</div></div>
+      </div>
+      <h2>Facilities</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Facility</th>
+            <th class="num">ASN</th>
+            <th class="num">Qty / Total RO</th>
+            <th class="num">Qty / Capacity</th>
+            <th class="num">%</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${facRows}
+          <tr class="total">
+            <td>Total</td>
+            <td class="num">${nfmt(receivedAsn.size)} / ${nfmt(plannedAsn.size)}</td>
+            <td class="num">${nfmt(receivedQty)} / ${nfmt(plannedQty)}</td>
+            <td class="num">${nfmt(receivedQty)} / ${nfmt(totalCap)}</td>
+            <td class="num">${capPct}%</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="foot">
+      <span>Inbound Daily Report · ${escapeHtml(reportDateLabel(day))}</span>
+      <span class="mark">noon MINUTES</span>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+function openDailyReport(){
+  const day = reportDate();
+  const data = RAW_DATA.filter(r=>r.date===day && (r.asn || r.vendor));
+  if(!data.length){
+    alert(t("dailyReportEmpty"));
+    return;
+  }
+  const w = window.open("", "_blank");
+  if(!w){
+    alert(t("dailyReportPopup"));
+    return;
+  }
+  w.document.open();
+  w.document.write(buildDailyReportHtml(day, data));
+  w.document.close();
+  const go = ()=> setTimeout(()=>{ try{ w.focus(); w.print(); }catch(e){} }, 250);
+  const img = w.document.querySelector("img");
+  if(img && !img.complete) img.addEventListener("load", go, {once:true});
+  else go();
 }
 
 // ===================== MASTER RENDER =====================
