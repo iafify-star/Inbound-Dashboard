@@ -3014,6 +3014,32 @@ function facilityReportName(fac){
 function reportPct(a, b){
   return b ? Math.round(a / b * 100) : 0;
 }
+function reportVendorStats(rows){
+  const map = {};
+  (rows||[]).forEach(r=>{
+    const name = (r.vendor||"").trim();
+    if(!name) return;
+    if(!map[name]) map[name] = {name, qty:0, sku:0, planned:0};
+    map[name].qty += r.qty||0;
+    map[name].planned += r.totalRo||0;
+    if(isReceivedRow(r)) map[name].sku += r.product||0;
+  });
+  return Object.values(map);
+}
+function reportTopVendors(list, key, limit){
+  return [...(list||[])]
+    .filter(v => (v[key]||0) > 0)
+    .sort((a,b)=>(b[key]||0)-(a[key]||0) || (b.qty||0)-(a.qty||0) || a.name.localeCompare(b.name))
+    .slice(0, limit||5);
+}
+function reportVendorTableRows(list, cellsFn, cols){
+  if(!list.length) return `<tr><td colspan="${cols}">No vendors</td></tr>`;
+  return list.map((v,i)=>`<tr>
+      <td class="rank">${i+1}</td>
+      <td>${escapeHtml(v.name)}</td>
+      ${cellsFn(v)}
+    </tr>`).join("");
+}
 function buildDailyReportHtml(day, data){
   const nfmt = n => (Number(n)||0).toLocaleString("en-US");
   const rows = (data||[]).filter(r => r.asn || r.vendor);
@@ -3062,6 +3088,17 @@ function buildDailyReportHtml(day, data){
   const qtyPct = reportPct(receivedQty, plannedQty);
   const venPct = reportPct(vendorsGot.size, vendors.size);
   const capPct = reportPct(receivedQty, totalCap);
+  const vendorStats = reportVendorStats(rows);
+  const topQtyVendors = reportTopVendors(vendorStats, "qty", 5);
+  const topSkuVendors = reportTopVendors(vendorStats, "sku", 5);
+  const topPlanVendors = reportTopVendors(vendorStats, "planned", 5);
+  const qtyVendorRows = reportVendorTableRows(topQtyVendors, v=>`<td class="num">${nfmt(v.qty)}</td>`, 3);
+  const skuVendorRows = reportVendorTableRows(topSkuVendors, v=>`<td class="num">${nfmt(v.sku)}</td>`, 3);
+  const planVendorRows = reportVendorTableRows(topPlanVendors, v=>{
+    const pct = reportPct(v.qty, v.planned);
+    const cls = pct>=100 ? "ok" : pct===0 ? "hot" : "";
+    return `<td class="num">${nfmt(v.planned)}</td><td class="num">${nfmt(v.qty)}</td><td class="num ${cls}">${pct}%</td>`;
+  }, 5);
   const logo = new URL("assets/noon-minutes-logo.png", location.href).href;
   return `<!DOCTYPE html>
 <html lang="en" dir="ltr">
@@ -3087,7 +3124,7 @@ function buildDailyReportHtml(day, data){
   .hero-text .team { font-size: 11px; font-weight: 800; }
   .hero-text h1 { margin: 3px 0 2px; font-size: 24px; font-weight: 800; }
   .hero-text .when { font-size: 12px; font-weight: 600; color: #3a3a3a; }
-  .body { padding: 10mm 12mm; flex: 1; }
+  .body { padding: 8mm 12mm 10mm; flex: 1; }
   .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
   .kpi { padding: 10px; border-radius: 8px; min-height: 92px; }
   .kpi .l { font-size: 11px; font-weight: 800; }
@@ -3100,14 +3137,19 @@ function buildDailyReportHtml(day, data){
   .kpi.green { background: #e4f7f2; }
   .kpi.green .s { color: #18795f; }
   h2 {
-    margin: 18px 0 10px; font-size: 12px; font-weight: 800;
+    margin: 14px 0 8px; font-size: 12px; font-weight: 800;
     background: #141414; color: #fff; padding: 6px 10px; border-radius: 6px;
   }
-  table { width: 100%; border-collapse: collapse; }
-  th, td { padding: 8px; border-bottom: 1px solid #eee; text-align: left; vertical-align: middle; }
+  .vendor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+  .vendor-grid h2, .vendor-full h2 { margin-top: 0; }
+  .vendor-full { margin-top: 10px; }
+  table { width: 100%; border-collapse: collapse; page-break-inside: avoid; }
+  th, td { padding: 6px 7px; border-bottom: 1px solid #eee; text-align: left; vertical-align: middle; }
   th { font-size: 9.5px; font-weight: 800; color: #555; background: #f7f7f8; }
-  td { font-size: 10.5px; }
+  td { font-size: 10px; }
   td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  td.rank, th.rank { width: 22px; color: #888; font-weight: 800; }
+  .vendor-grid td:nth-child(2), .vendor-full td:nth-child(2) { word-break: break-word; }
   .code { font-family: Consolas, "Courier New", monospace; font-size: 10px; font-weight: 800; margin-right: 6px; }
   tr.total td { font-weight: 800; background: #fff6b0; border-bottom: none; }
   .ok { color: #18795f; font-weight: 800; }
@@ -3121,7 +3163,11 @@ function buildDailyReportHtml(day, data){
     background: #f5e023; color: #141414; padding: 2px 8px; border-radius: 4px;
     font-size: 9px; font-weight: 800; letter-spacing: .04em;
   }
-  @media print { body { width: auto; min-height: auto; } .page { width: auto; } }
+  @media print {
+    body { width: auto; min-height: auto; }
+    .page { width: auto; }
+    .vendor-grid { break-before: page; page-break-before: always; }
+  }
 </style>
 </head>
 <body>
@@ -3163,6 +3209,41 @@ function buildDailyReportHtml(day, data){
           </tr>
         </tbody>
       </table>
+      <div class="vendor-grid">
+        <div>
+          <h2>Top 5 vendors by quantity</h2>
+          <table>
+            <thead>
+              <tr><th class="rank">#</th><th>Vendor</th><th class="num">Quantity</th></tr>
+            </thead>
+            <tbody>${qtyVendorRows}</tbody>
+          </table>
+        </div>
+        <div>
+          <h2>Top 5 vendors by SKU</h2>
+          <table>
+            <thead>
+              <tr><th class="rank">#</th><th>Vendor</th><th class="num">SKU</th></tr>
+            </thead>
+            <tbody>${skuVendorRows}</tbody>
+          </table>
+        </div>
+      </div>
+      <div class="vendor-full">
+        <h2>Top 5 vendors by planned quantity</h2>
+        <table>
+          <thead>
+            <tr>
+              <th class="rank">#</th>
+              <th>Vendor</th>
+              <th class="num">Planned</th>
+              <th class="num">Received</th>
+              <th class="num">%</th>
+            </tr>
+          </thead>
+          <tbody>${planVendorRows}</tbody>
+        </table>
+      </div>
     </div>
     <div class="foot">
       <span>Inbound Daily Report · ${escapeHtml(reportDateLabel(day))}</span>
