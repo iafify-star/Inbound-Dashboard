@@ -3168,13 +3168,21 @@ function buildDailyReportHtml(day, data){
   .ok { color: #18795f; font-weight: 800; }
   .hot { color: #db3332; font-weight: 800; }
   .foot {
-    background: #141414; color: #fff; padding: 7px 11mm; margin-top: auto;
-    display: flex; justify-content: space-between; align-items: center;
+    background: #141414; color: #fff; padding: 7px 11mm 6px; margin-top: auto;
+    display: flex; flex-direction: column; align-items: stretch; gap: 5px;
     font-size: 10.5px; font-weight: 700;
+  }
+  .foot-row {
+    display: flex; justify-content: space-between; align-items: center; gap: 12px;
   }
   .foot .mark {
     background: #f5e023; color: #141414; padding: 3px 8px; border-radius: 4px;
     font-size: 9px; font-weight: 800; letter-spacing: .04em;
+  }
+  .credit {
+    text-align: center; width: 100%;
+    color: #f5e023; font-size: 10.5px; font-weight: 800;
+    letter-spacing: .02em;
   }
   @media print {
     body, .page { width: 210mm; height: 297mm; overflow: hidden; }
@@ -3285,8 +3293,11 @@ function buildDailyReportHtml(day, data){
       </div>
     </div>
     <div class="foot">
-      <span>Inbound Daily Report · ${escapeHtml(reportDateLabel(day))}</span>
-      <span class="mark">noon MINUTES</span>
+      <div class="foot-row">
+        <span>Inbound Daily Report · ${escapeHtml(reportDateLabel(day))}</span>
+        <span class="mark">noon MINUTES</span>
+      </div>
+      <div class="credit">Designed by Ibrahim Afify</div>
     </div>
   </div>
 </body>
@@ -3321,7 +3332,7 @@ function waitForImages(root){
 function mountReportFrame(html){
   const iframe = document.createElement("iframe");
   iframe.setAttribute("aria-hidden", "true");
-  iframe.style.cssText = "position:fixed;left:0;top:0;width:210mm;min-height:297mm;border:0;background:#fff;pointer-events:none;z-index:-1;";
+  iframe.style.cssText = "position:fixed;left:0;top:0;width:794px;height:1123px;overflow:hidden;border:0;background:#fff;pointer-events:none;z-index:-1;";
   document.body.appendChild(iframe);
   const doc = iframe.contentDocument;
   doc.open();
@@ -3346,7 +3357,7 @@ async function downloadDailyReportPdf(day, data){
     const win = iframe.contentWindow;
     const doc = iframe.contentDocument;
     await waitForImages(doc);
-    iframe.style.height = "297mm";
+    iframe.style.height = "1123px";
     if(typeof win.html2pdf !== "function"){
       await loadScriptInto(doc, "https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.2/dist/html2pdf.bundle.min.js")
         .catch(()=> loadScriptInto(doc, "https://unpkg.com/html2pdf.js@0.10.2/dist/html2pdf.bundle.min.js"));
@@ -3354,26 +3365,28 @@ async function downloadDailyReportPdf(day, data){
     if(typeof win.html2pdf !== "function") throw new Error("html2pdf missing");
     await new Promise(res=> setTimeout(res, 80));
     const page = doc.querySelector(".page") || doc.body;
-    const canvasOpts = { scale: 2, useCORS: true, backgroundColor: "#ffffff", logging: false, windowWidth: 794, windowHeight: 1123 };
-    const JsPDF = win.jspdf && win.jspdf.jsPDF;
-    if(typeof win.html2canvas === "function" && JsPDF){
-      const canvas = await win.html2canvas(page, canvasOpts);
-      const pdf = new JsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
-      pdf.addImage(canvas.toDataURL("image/jpeg", 0.98), "JPEG", 0, 0, 210, 297);
-      downloadBlob(pdf.output("blob"), filename);
-      return;
-    }
-    const opt = {
-      margin: 0,
-      filename,
-      image: { type: "jpeg", quality: 0.98 },
-      html2canvas: canvasOpts,
-      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-      pagebreak: { mode: ["avoid-all"] }
+    const canvasOpts = {
+      scale: 2, useCORS: true, backgroundColor: "#ffffff", logging: false,
+      width: 794, height: 1123, windowWidth: 794, windowHeight: 1123,
+      x: 0, y: 0, scrollX: 0, scrollY: 0
     };
-    const blob = await win.html2pdf().set(opt).from(page).outputPdf("blob");
-    if(!blob) throw new Error("empty pdf");
-    downloadBlob(blob, filename);
+    const JsPDF = (win.jspdf && win.jspdf.jsPDF) || win.jsPDF;
+    if(typeof win.html2canvas !== "function" || !JsPDF) throw new Error("pdf engine missing");
+    const raw = await win.html2canvas(page, canvasOpts);
+    const targetH = Math.round(raw.width * 297 / 210);
+    let canvas = raw;
+    if(raw.height > targetH + 1){
+      canvas = doc.createElement("canvas");
+      canvas.width = raw.width;
+      canvas.height = targetH;
+      canvas.getContext("2d").drawImage(raw, 0, 0, raw.width, targetH, 0, 0, raw.width, targetH);
+    }
+    const pdf = new JsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+    const w = pdf.internal.pageSize.getWidth();
+    const h = pdf.internal.pageSize.getHeight();
+    pdf.addImage(canvas.toDataURL("image/jpeg", 0.98), "JPEG", 0, 0, w, h, "", "FAST");
+    for(let i = pdf.internal.getNumberOfPages(); i > 1; i--) pdf.deletePage(i);
+    downloadBlob(pdf.output("blob"), filename);
   }finally{
     iframe.remove();
   }
