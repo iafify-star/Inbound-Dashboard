@@ -418,22 +418,28 @@
     <div id="capacityBars"></div>
   </div>
 
-  <div class="grid">
+  <div class="grid2">
     <div class="panel">
       <h3 data-i18n="qtyByFac">Quantity received by facility</h3>
       <p class="desc" data-i18n="qtyByFacDesc">Total units received, grouped by facility</p>
       <div class="chart-box"><canvas id="chartFacilityQty"></canvas></div>
     </div>
     <div class="panel">
-      <h3 data-i18n="topVendors">Top 10 vendors by quantity</h3>
-      <p class="desc" data-i18n="topVendorsDesc">Top 10 vendors by quantity received</p>
-      <div class="chart-box"><canvas id="chartTopVendors"></canvas></div>
+      <h3 data-i18n="skuByFac">SKU received by facility</h3>
+      <p class="desc" data-i18n="skuByFacDesc">Live SKU count received per warehouse</p>
+      <div class="chart-box"><canvas id="chartFacilitySku"></canvas></div>
     </div>
   </div>
 
   <div class="panel" style="margin-bottom:16px;">
+    <h3 data-i18n="topVendors">Top 10 vendors by quantity</h3>
+    <p class="desc" data-i18n="topVendorsDesc">Top 10 vendors by quantity received</p>
+    <div class="chart-box"><canvas id="chartTopVendors"></canvas></div>
+  </div>
+
+  <div class="panel" style="margin-bottom:16px;">
     <h3 data-i18n="empPerf">Inbound employee performance</h3>
-    <p class="desc" data-i18n="empPerfDesc">Live quantity and ASNs received per employee</p>
+    <p class="desc" data-i18n="empPerfDesc">Live quantity, SKUs, and ASNs received per employee</p>
     <div class="chart-box tall"><canvas id="chartEmpPerf"></canvas></div>
   </div>
 
@@ -549,13 +555,15 @@ const I18N = {
     capMany:"Receiving capacity from sheet — {n} days ({from} → {to})",
     qtyByFac:"Quantity received by facility",
     qtyByFacDesc:"Live received quantity by facility — grows as ASNs are received",
+    skuByFac:"SKU received by facility",
+    skuByFacDesc:"Live SKU count received per warehouse",
     shareByFac:"Receipts share by facility",
     shareByFacDesc:"Distribution of inbound receipts by facility",
     topVendors:"Top 10 vendors by quantity",
     topVendorsDesc:"Live top 10 vendors by quantity received",
     empPerf:"Inbound employee performance",
-    empPerfDesc:"Live quantity and ASNs received per employee",
-    tooltipEmp:"{qty} units · {n} ASNs",
+    empPerfDesc:"Live quantity, SKUs, and ASNs received per employee",
+    tooltipEmp:"{qty} units · {sku} SKU · {n} ASNs",
     hourly:"Receiving throughout the day",
     hourlyDesc:"Inbound receipts by hour of day",
     skuTitle:"SKU count per vendor — Top 10",
@@ -694,13 +702,15 @@ const I18N = {
     capMany:"الطاقة الاستيعابية من الشيت — {n} أيام ({from} → {to})",
     qtyByFac:"الكمية المستلمة حسب المستودع",
     qtyByFacDesc:"الكمية المستلمة لايف حسب المستودع — بتزيد أول بأول",
+    skuByFac:"عدد الـ SKU حسب المستودع",
+    skuByFacDesc:"عدد الـ SKU المستلم لايف لكل مستودع",
     shareByFac:"توزيع الاستلامات حسب المستودع",
     shareByFacDesc:"حصة كل مستودع من استلامات inbound",
     topVendors:"أعلى 10 موردين حسب الكمية",
     topVendorsDesc:"أعلى 10 موردين حسب الكمية المستلمة لايف",
     empPerf:"أداء موظفي inbound",
-    empPerfDesc:"الكمية وعدد الـ ASN المستلمة لكل موظف — لايف أول بأول",
-    tooltipEmp:"{qty} وحدة · {n} ASN",
+    empPerfDesc:"الكمية وعدد الـ SKU والـ ASN لكل موظف — لايف أول بأول",
+    tooltipEmp:"{qty} وحدة · {sku} SKU · {n} ASN",
     hourly:"توزيع الاستلام خلال اليوم",
     hourlyDesc:"الاستلامات الواردة حسب الساعة",
     skuTitle:"عدد الـ SKU لكل مورد — أعلى 10",
@@ -1801,7 +1811,7 @@ function chartViewKey(data){
   const fac = (el("fFacility") && el("fFacility").value) || "";
   const emp = (el("fEmp") && el("fEmp").value) || "";
   const status = (el("fStatus") && el("fStatus").value) || "";
-  const core = (data||[]).map(r => [r.date,r.asn,r.qty,r.totalRo,r.facility,r.emp,r.vendor,r.status].join("|")).join(";");
+  const core = (data||[]).map(r => [r.date,r.asn,r.qty,r.totalRo,r.product,r.facility,r.emp,r.vendor,r.status].join("|")).join(";");
   return [theme, currentLang, from, to, fac, emp, empFilter, status, vendorFilter, core].join("::");
 }
 
@@ -1810,18 +1820,23 @@ function upsertChart(name, canvas, config){
   const emps = config.$emps;
   const existing = charts[name];
   if(existing){
-    existing.data.labels = config.data.labels;
-    existing.data.datasets.forEach((ds,i)=>{
-      const next = config.data.datasets[i];
-      if(!next) return;
-      ds.data = next.data;
-      ds.label = next.label;
-      if(next.backgroundColor) ds.backgroundColor = next.backgroundColor;
-    });
-    if(vendors) existing.$vendors = vendors;
-    if(emps) existing.$emps = emps;
-    existing.update();
-    return existing;
+    if(existing.data.datasets.length !== config.data.datasets.length){
+      existing.destroy();
+      delete charts[name];
+    }else{
+      existing.data.labels = config.data.labels;
+      existing.data.datasets.forEach((ds,i)=>{
+        const next = config.data.datasets[i];
+        if(!next) return;
+        ds.data = next.data;
+        ds.label = next.label;
+        if(next.backgroundColor) ds.backgroundColor = next.backgroundColor;
+      });
+      if(vendors) existing.$vendors = vendors;
+      if(emps) existing.$emps = emps;
+      existing.update();
+      return existing;
+    }
   }
   const chart = new Chart(canvas, {
     type: config.type,
@@ -1842,7 +1857,7 @@ function renderCharts(data){
     lastChartKey = "";
   }
   const key = chartViewKey(data);
-  if(key === lastChartKey && charts.facilityQty && charts.topVendors && (!el("chartEmpPerf") || charts.empPerf)) return;
+  if(key === lastChartKey && charts.facilityQty && charts.facilitySku && charts.topVendors && (!el("chartEmpPerf") || charts.empPerf)) return;
   lastChartKey = key;
   if(typeof Chart === "undefined") return;
   applyChartDefaults();
@@ -1852,25 +1867,31 @@ function renderCharts(data){
     return node && typeof node.getContext === "function" ? node : null;
   };
   const chartFacilityQty = can("chartFacilityQty");
+  const chartFacilitySku = can("chartFacilitySku");
   const chartTopVendors = can("chartTopVendors");
   const empCanvas = can("chartEmpPerf");
-  if(!chartFacilityQty && !chartTopVendors && !empCanvas) return;
+  if(!chartFacilityQty && !chartFacilitySku && !chartTopVendors && !empCanvas) return;
 
   const byFacilityQty = {};
+  const byFacilitySku = {};
   const byVendorQty = {};
   const byEmp = {};
   data.forEach(r=>{
     const qty = r.qty || 0;
     if(r.facility) byFacilityQty[r.facility] = (byFacilityQty[r.facility]||0)+qty;
+    if(r.facility && isReceivedRow(r)) byFacilitySku[r.facility] = (byFacilitySku[r.facility]||0)+(r.product||0);
     if(r.vendor && qty) byVendorQty[r.vendor] = (byVendorQty[r.vendor]||0)+qty;
     const name = (r.emp||"").trim();
     if(name){
-      if(!byEmp[name]) byEmp[name] = {qty:0, asns:new Set()};
+      if(!byEmp[name]) byEmp[name] = {qty:0, sku:0, asns:new Set()};
       byEmp[name].qty += qty;
-      if(isReceivedRow(r)) byEmp[name].asns.add(asnKey(r));
+      if(isReceivedRow(r)){
+        byEmp[name].asns.add(asnKey(r));
+        byEmp[name].sku += r.product||0;
+      }
     }
   });
-  const facLabels = Object.keys(byFacilityQty).sort();
+  const facLabels = [...new Set([...Object.keys(byFacilityQty), ...Object.keys(byFacilitySku)])].sort();
   const topVendorsQty = Object.entries(byVendorQty).sort((a,b)=>b[1]-a[1]).slice(0,10);
 
   if(chartFacilityQty) upsertChart("facilityQty", chartFacilityQty, {
@@ -1894,6 +1915,34 @@ function renderCharts(data){
       },
       plugins:{ legend:{display:false},
         tooltip:{ callbacks:{ label:(c)=>fmt(c.parsed.y)+" "+t("units") } } },
+      scales:{
+        y:{ grid:{color:tc.grid}, ticks:{callback:v=>fmt(v)} },
+        x:{ grid:{display:false} }
+      }
+    }
+  });
+
+  if(chartFacilitySku) upsertChart("facilitySku", chartFacilitySku, {
+    type:"bar",
+    data:{
+      labels: facLabels,
+      datasets:[{
+        label:t("skuCount"),
+        data: facLabels.map(f=>byFacilitySku[f]||0),
+        backgroundColor: facLabels.map((_,i)=>COLORS[(i+4)%COLORS.length]),
+        borderRadius:8,
+        maxBarThickness:48,
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      animation:{duration:450},
+      onClick:(_e, els, chart)=>{
+        if(!els.length) return;
+        applyClickFilter("facility", chart.data.labels[els[0].index]);
+      },
+      plugins:{ legend:{display:false},
+        tooltip:{ callbacks:{ label:(c)=>t("skuCount")+": "+fmt(c.parsed.y) } } },
       scales:{
         y:{ grid:{color:tc.grid}, ticks:{callback:v=>fmt(v)} },
         x:{ grid:{display:false} }
@@ -1933,22 +1982,33 @@ function renderCharts(data){
   });
 
   const empRows = Object.entries(byEmp)
-    .map(([name,v])=>({name, qty:v.qty, asns:v.asns.size}))
-    .filter(e=>e.qty>0 || e.asns>0)
-    .sort((a,b)=>b.qty-a.qty || b.asns-a.asns);
+    .map(([name,v])=>({name, qty:v.qty, sku:v.sku, asns:v.asns.size}))
+    .filter(e=>e.qty>0 || e.sku>0 || e.asns>0)
+    .sort((a,b)=>b.qty-a.qty || b.sku-a.sku || b.asns-a.asns);
 
   if(empCanvas) upsertChart("empPerf", empCanvas, {
     type:"bar",
     $emps: empRows,
     data:{
       labels: empRows.map(e=>e.name.length>22 ? e.name.slice(0,22)+"…" : e.name),
-      datasets:[{
-        label:t("qtyReceived"),
-        data: empRows.map(e=>e.qty),
-        backgroundColor:"#1fb08f",
-        borderRadius:6,
-        maxBarThickness:22,
-      }]
+      datasets:[
+        {
+          label:t("qtyReceived"),
+          data: empRows.map(e=>e.qty),
+          backgroundColor:"#1fb08f",
+          borderRadius:6,
+          maxBarThickness:16,
+          xAxisID:"x",
+        },
+        {
+          label:t("skuCount"),
+          data: empRows.map(e=>e.sku),
+          backgroundColor:"#f5e023",
+          borderRadius:6,
+          maxBarThickness:16,
+          xAxisID:"xSku",
+        }
+      ]
     },
     options:{
       indexAxis:"y",
@@ -1959,15 +2019,19 @@ function renderCharts(data){
         const list = chart.$emps || [];
         if(list[els[0].index]) applyClickFilter("emp", list[els[0].index].name);
       },
-      plugins:{ legend:{display:false},
+      plugins:{
+        legend:{display:true, position:"bottom", labels:{boxWidth:10, padding:14, font:{size:11}}},
         tooltip:{ callbacks:{
           label:(c)=>{
             const row = (c.chart.$emps || [])[c.dataIndex];
-            return t("tooltipEmp",{qty:fmt(c.parsed.x), n:fmt(row ? row.asns : 0)});
+            if(c.datasetIndex===1) return t("skuCount")+": "+fmt(c.parsed.x);
+            return t("tooltipEmp",{qty:fmt(c.parsed.x), sku:fmt(row ? row.sku : 0), n:fmt(row ? row.asns : 0)});
           }
-        } } },
+        } }
+      },
       scales:{
-        x:{ grid:{color:tc.grid}, ticks:{callback:v=>fmt(v)} },
+        x:{ position:"bottom", grid:{color:tc.grid}, ticks:{callback:v=>fmt(v)}, title:{display:true, text:t("qtyReceived"), font:{size:11}} },
+        xSku:{ position:"top", grid:{display:false}, ticks:{callback:v=>fmt(v)}, title:{display:true, text:t("skuCount"), font:{size:11}} },
         y:{ grid:{display:false}, ticks:{font:{size:11}} }
       }
     }
