@@ -3116,26 +3116,33 @@ function buildDailyReportHtml(day, data){
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; background: #fff; }
   body {
-    width: 210mm; min-height: 297mm;
+    width: 210mm; height: 297mm; overflow: hidden;
     font-family: "Segoe UI", Arial, sans-serif;
-    color: #141414; font-size: 10.5px; line-height: 1.35;
+    color: #141414; font-size: 9.5px; line-height: 1.25;
   }
-  .page { width: 210mm; min-height: 297mm; display: flex; flex-direction: column; }
+  .page {
+    width: 210mm; height: 297mm; overflow: hidden;
+    display: flex; flex-direction: column;
+  }
   .hero {
-    background: #f5e023; padding: 11mm 12mm 9mm;
-    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    background: #f5e023; padding: 6mm 10mm 5mm;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
   }
-  .hero img { height: 52px; width: auto; display: block; background: #f5e023; }
+  .hero img { height: 38px; width: auto; display: block; background: #f5e023; }
   .hero-text { text-align: left; }
-  .hero-text .team { font-size: 11px; font-weight: 800; }
-  .hero-text h1 { margin: 3px 0 2px; font-size: 24px; font-weight: 800; }
-  .hero-text .when { font-size: 12px; font-weight: 600; color: #3a3a3a; }
-  .body { padding: 8mm 12mm 10mm; flex: 1; }
-  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-  .kpi { padding: 10px; border-radius: 8px; min-height: 92px; }
-  .kpi .l { font-size: 11px; font-weight: 800; }
-  .kpi .v { font-size: 22px; font-weight: 800; margin-top: 8px; letter-spacing: -.02em; }
-  .kpi .s { font-size: 10px; margin-top: 3px; font-weight: 700; }
+  .hero-text .team { font-size: 10px; font-weight: 800; }
+  .hero-text h1 { margin: 2px 0 1px; font-size: 18px; font-weight: 800; }
+  .hero-text .when { font-size: 11px; font-weight: 600; color: #3a3a3a; }
+  .body { padding: 4.5mm 10mm 3mm; flex: 1; min-height: 0; }
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .kpi { padding: 7px 8px; border-radius: 7px; }
+  .kpi .l { font-size: 10px; font-weight: 800; }
+  .kpi .rows { margin-top: 5px; display: flex; flex-direction: column; gap: 2px; }
+  .kpi .rows div { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .kpi .rows span { font-size: 8.5px; font-weight: 700; opacity: .72; }
+  .kpi .rows b { font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+  .kpi .s { font-size: 8.5px; margin-top: 5px; font-weight: 700; }
+  .kpi.dark .rows span { color: #f5e023; opacity: 1; }
   .kpi.yellow { background: #fff6b0; }
   .kpi.red { background: #fde8e8; }
   .kpi.dark { background: #141414; color: #fff; }
@@ -3143,36 +3150,34 @@ function buildDailyReportHtml(day, data){
   .kpi.green { background: #e4f7f2; }
   .kpi.green .s { color: #18795f; }
   h2 {
-    margin: 14px 0 8px; font-size: 12px; font-weight: 800;
-    background: #141414; color: #fff; padding: 6px 10px; border-radius: 6px;
+    margin: 7px 0 4px; font-size: 10px; font-weight: 800;
+    background: #141414; color: #fff; padding: 4px 8px; border-radius: 5px;
   }
-  .vendor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; break-before: page; page-break-before: always; }
+  .vendor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px; }
   .vendor-grid h2, .vendor-full h2 { margin-top: 0; }
-  .vendor-full { margin-top: 10px; }
-  table { width: 100%; border-collapse: collapse; page-break-inside: avoid; }
-  th, td { padding: 6px 7px; border-bottom: 1px solid #eee; text-align: left; vertical-align: middle; }
-  th { font-size: 9.5px; font-weight: 800; color: #555; background: #f7f7f8; }
-  td { font-size: 10px; }
+  .vendor-full { margin-top: 6px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 3px 5px; border-bottom: 1px solid #eee; text-align: left; vertical-align: middle; }
+  th { font-size: 8.5px; font-weight: 800; color: #555; background: #f7f7f8; }
+  td { font-size: 9px; }
   td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
-  td.rank, th.rank { width: 22px; color: #888; font-weight: 800; }
+  td.rank, th.rank { width: 18px; color: #888; font-weight: 800; }
   .vendor-grid td:nth-child(2), .vendor-full td:nth-child(2) { word-break: break-word; }
-  .code { font-family: Consolas, "Courier New", monospace; font-size: 10px; font-weight: 800; margin-right: 6px; }
+  .code { font-family: Consolas, "Courier New", monospace; font-size: 9px; font-weight: 800; margin-right: 5px; }
   tr.total td { font-weight: 800; background: #fff6b0; border-bottom: none; }
   .ok { color: #18795f; font-weight: 800; }
   .hot { color: #db3332; font-weight: 800; }
   .foot {
-    background: #141414; color: #fff; padding: 7px 12mm; margin-top: auto;
+    background: #141414; color: #fff; padding: 5px 10mm; margin-top: auto;
     display: flex; justify-content: space-between; align-items: center;
-    font-size: 10px; font-weight: 700;
+    font-size: 9px; font-weight: 700;
   }
   .foot .mark {
-    background: #f5e023; color: #141414; padding: 2px 8px; border-radius: 4px;
-    font-size: 9px; font-weight: 800; letter-spacing: .04em;
+    background: #f5e023; color: #141414; padding: 2px 7px; border-radius: 4px;
+    font-size: 8px; font-weight: 800; letter-spacing: .04em;
   }
   @media print {
-    body { width: auto; min-height: auto; }
-    .page { width: auto; }
-    .vendor-grid { break-before: page; page-break-before: always; }
+    body, .page { width: 210mm; height: 297mm; overflow: hidden; }
   }
 </style>
 </head>
@@ -3188,10 +3193,38 @@ function buildDailyReportHtml(day, data){
     </div>
     <div class="body">
       <div class="kpis">
-        <div class="kpi yellow"><div class="l">ASN</div><div class="v">${nfmt(receivedAsn.size)} / ${nfmt(plannedAsn.size)}</div><div class="s">${asnPct}% received</div></div>
-        <div class="kpi red"><div class="l">Quantity</div><div class="v">${nfmt(receivedQty)} / ${nfmt(plannedQty)}</div><div class="s">${qtyPct}% of planned</div></div>
-        <div class="kpi dark"><div class="l">Vendors</div><div class="v">${nfmt(vendorsGot.size)} / ${nfmt(vendors.size)}</div><div class="s">${venPct}% received</div></div>
-        <div class="kpi green"><div class="l">Capacity</div><div class="v">${nfmt(receivedQty)} / ${nfmt(totalCap)}</div><div class="s">${capPct}% of daily capacity</div></div>
+        <div class="kpi yellow">
+          <div class="l">ASNs today</div>
+          <div class="rows">
+            <div><span>Received</span><b>${nfmt(receivedAsn.size)}</b></div>
+            <div><span>Planned</span><b>${nfmt(plannedAsn.size)}</b></div>
+          </div>
+          <div class="s">${asnPct}% of planned ASNs are received</div>
+        </div>
+        <div class="kpi red">
+          <div class="l">Quantity (units)</div>
+          <div class="rows">
+            <div><span>Received</span><b>${nfmt(receivedQty)}</b></div>
+            <div><span>Planned</span><b>${nfmt(plannedQty)}</b></div>
+          </div>
+          <div class="s">${qtyPct}% of planned units are received</div>
+        </div>
+        <div class="kpi dark">
+          <div class="l">Vendors</div>
+          <div class="rows">
+            <div><span>Received</span><b>${nfmt(vendorsGot.size)}</b></div>
+            <div><span>Planned</span><b>${nfmt(vendors.size)}</b></div>
+          </div>
+          <div class="s">${venPct}% of planned vendors are received</div>
+        </div>
+        <div class="kpi green">
+          <div class="l">Warehouse capacity</div>
+          <div class="rows">
+            <div><span>Used today</span><b>${nfmt(receivedQty)}</b></div>
+            <div><span>Daily limit</span><b>${nfmt(totalCap)}</b></div>
+          </div>
+          <div class="s">${capPct}% of today's warehouse capacity used</div>
+        </div>
       </div>
       <h2>Facilities</h2>
       <table>
@@ -3313,7 +3346,7 @@ async function downloadDailyReportPdf(day, data){
     const win = iframe.contentWindow;
     const doc = iframe.contentDocument;
     await waitForImages(doc);
-    iframe.style.height = Math.max(doc.documentElement.scrollHeight, doc.body.scrollHeight, 1123) + "px";
+    iframe.style.height = "297mm";
     if(typeof win.html2pdf !== "function"){
       await loadScriptInto(doc, "https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.2/dist/html2pdf.bundle.min.js")
         .catch(()=> loadScriptInto(doc, "https://unpkg.com/html2pdf.js@0.10.2/dist/html2pdf.bundle.min.js"));
@@ -3325,9 +3358,9 @@ async function downloadDailyReportPdf(day, data){
       margin: 0,
       filename,
       image: { type: "jpeg", quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff", logging: false },
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff", logging: false, windowWidth: 794 },
       jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-      pagebreak: { mode: ["css", "legacy"], before: ".vendor-grid" }
+      pagebreak: { mode: ["avoid-all"] }
     };
     let blob;
     try{
