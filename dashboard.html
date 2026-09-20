@@ -22,8 +22,8 @@
   }
 })();
 </script>
-<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js" onerror="this.onerror=null;this.src='https://unpkg.com/papaparse@5.4.1/papaparse.min.js'"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" onerror="this.onerror=null;this.src='https://unpkg.com/chart.js@4.4.4/dist/chart.umd.min.js'"></script>
 <style>
   :root{
     --bg:#f4f5f7;
@@ -573,6 +573,11 @@
 const SHEET_ID = "1WDP9TBF3V_q09dWHpE8j9v0FFjbXmk95dXcIPe27St0";
 const CAPACITY_SHEET_ID = "1D1HKYe0wjCb0sroYOgdkYLfcrkdNSWKKIYDaD6D9_Ns";
 const CSV_BASE_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0`;
+const RECEIVING_CSV_URLS = [
+  `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0`,
+  `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&gid=0`,
+  `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Daily%20Receiving`,
+];
 const PIVOT_GID = "1851119120";
 const CAPACITY_GID = "514598343";
 const PIVOT_CSV_URLS = [
@@ -1200,6 +1205,7 @@ let lastChartSkin = "";
 let lastSnapHash = "";
 let lastCapacityRows = [];
 let lastCapacityAt = 0;
+let liveSession = false;
 const CAPACITY_REFRESH_MS = 60000;
 const TABLE_PAGE_SIZE = 50;
 let tablePage = 0;
@@ -1365,24 +1371,114 @@ function setLiveBadge(state){
   badge.innerHTML = `<span class="dot"></span> ${t(m.key)}`;
 }
 
-async function fetchCsv(url){
+function looksLikeCsv(text){
+  if(!text) return false;
+  const head = String(text).slice(0, 240).replace(/^\uFEFF/, "");
+  if(/^\s*<(!doctype|html|script)/i.test(head)) return false;
+  if(/accounts\.google|sign[\s-]*in/i.test(head)) return false;
+  return true;
+}
+
+function parseCsvLite(text, header){
+  const lines = [];
+  let row = [], field = "", inQ = false;
+  const s = String(text).replace(/^\uFEFF/, "");
+  for(let i=0;i<s.length;i++){
+    const ch = s[i];
+    if(inQ){
+      if(ch === '"'){
+        if(s[i+1] === '"'){ field += '"'; i++; }
+        else inQ = false;
+      }else field += ch;
+    }else if(ch === '"'){ inQ = true; }
+    else if(ch === ","){ row.push(field); field = ""; }
+    else if(ch === "\n"){ row.push(field); lines.push(row); row = []; field = ""; }
+    else if(ch !== "\r"){ field += ch; }
+  }
+  if(field || row.length){ row.push(field); lines.push(row); }
+  if(!header) return lines;
+  const keys = (lines.shift() || []).map(k => String(k).trim());
+  return lines.filter(r => r.some(c => String(c).trim())).map(r=>{
+    const o = {};
+    keys.forEach((k,i)=>{ o[k] = r[i] != null ? r[i] : ""; });
+    return o;
+  });
+}
+
+function parseCsv(text, header){
+  if(typeof Papa !== "undefined"){
+    return Papa.parse(text, {header:!!header, skipEmptyLines:true}).data || [];
+  }
+  return parseCsvLite(text, header);
+}
+
+async function fetchCsv(url, ms){
   const sep = url.includes("?") ? "&" : "?";
   const ctrl = new AbortController();
-  const timer = setTimeout(()=>ctrl.abort(), 12000);
+  const timer = setTimeout(()=>ctrl.abort(), ms || 15000);
   try{
-    const res = await fetch(url + sep + "_ts=" + Date.now(), {cache:"no-store", signal:ctrl.signal});
+    const res = await fetch(url + sep + "_ts=" + Date.now(), {
+      cache:"no-store",
+      signal:ctrl.signal,
+      credentials:"omit",
+      mode:"cors"
+    });
     if(!res.ok) throw new Error("HTTP "+res.status);
-    return res.text();
+    const text = await res.text();
+    if(!looksLikeCsv(text)) throw new Error("Unexpected sheet response");
+    return text;
   }finally{
     clearTimeout(timer);
   }
 }
 
-function parsePivotCapacity(text){
-  if(typeof Papa === "undefined" || !text) return [];
-  const parsed = Papa.parse(text, {header:false, skipEmptyLines:true});
+function gvizCell(cell, col){
+  if(!cell) return "";
+  const type = (col && col.type) || "";
+  if(type === "number" && cell.v != null) return cell.v;
+  if((type === "date" || type === "datetime" || type === "timeofday") && cell.f != null) return cell.f;
+  if(cell.f != null && cell.f !== "") return cell.f;
+  return cell.v != null ? cell.v : "";
+}
+
+function gvizToObjects(resp){
+  const table = (resp && resp.table) || {};
+  const cols = table.cols || [];
+  const keys = cols.map((c,i)=> (c.label || c.id || ("col"+i)).toString().trim());
+  return (table.rows || []).map(row=>{
+    const obj = {};
+    keys.forEach((key,i)=>{ obj[key] = gvizCell((row.c || [])[i], cols[i]); });
+    return obj;
+  });
+}
+
+function fetchGvizJsonp(sheetId, extra){
+  return new Promise((resolve, reject)=>{
+    const cbName = "inboundGviz_" + Date.now() + "_" + Math.floor(Math.random()*1e6);
+    const script = document.createElement("script");
+    const timer = setTimeout(()=>{ cleanup(); reject(new Error("gviz timeout")); }, 15000);
+    function cleanup(){
+      clearTimeout(timer);
+      try{ delete window[cbName]; }catch(e){ window[cbName] = undefined; }
+      if(script.parentNode) script.parentNode.removeChild(script);
+    }
+    window[cbName] = function(resp){
+      cleanup();
+      if(!resp || resp.status === "error"){
+        reject(new Error((resp && resp.errors && resp.errors[0] && resp.errors[0].detailed_message) || "gviz error"));
+        return;
+      }
+      resolve(resp);
+    };
+    script.onerror = function(){ cleanup(); reject(new Error("gviz script failed")); };
+    script.src = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=responseHandler:${cbName}&${extra || "gid=0"}&_ts=${Date.now()}`;
+    document.head.appendChild(script);
+  });
+}
+
+function parsePivotLines(lines){
   const rows = [];
-  parsed.data.forEach(cells=>{
+  (lines || []).forEach(cells=>{
     const line = (cells||[]).map(c => (c==null ? "" : String(c)).trim());
     const facRaw = line[0] || "";
     if(!/^CAIID\d+/i.test(facRaw)) return;
@@ -1402,8 +1498,42 @@ function parsePivotCapacity(text){
   return rows;
 }
 
+function parsePivotCapacity(text){
+  if(!text) return [];
+  return parsePivotLines(parseCsv(text, false));
+}
+
+function parsePivotGviz(resp){
+  const table = (resp && resp.table) || {};
+  const cols = table.cols || [];
+  const lines = (table.rows || []).map(row => (row.c || []).map((cell,i)=> String(gvizCell(cell, cols[i]) ?? "").trim()));
+  return parsePivotLines(lines);
+}
+
+async function loadReceivingRows(){
+  let lastErr;
+  for(const url of RECEIVING_CSV_URLS){
+    try{
+      const receipts = parseCsv(await fetchCsv(url), true).map(normalizeRow).filter(Boolean);
+      if(receipts.length) return receipts;
+      lastErr = new Error("No data rows in receiving sheet");
+    }catch(err){
+      lastErr = err;
+      console.warn("Receiving CSV fetch failed:", url, err);
+    }
+  }
+  try{
+    const receipts = gvizToObjects(await fetchGvizJsonp(SHEET_ID, "gid=0")).map(normalizeRow).filter(Boolean);
+    if(receipts.length) return receipts;
+    lastErr = new Error("No data rows from gviz");
+  }catch(err){
+    lastErr = err;
+    console.warn("Receiving gviz fetch failed:", err);
+  }
+  throw lastErr || new Error("Receiving sheet unavailable");
+}
+
 async function loadCapacitySheet(){
-  if(typeof Papa === "undefined") return lastCapacityRows;
   for(const url of PIVOT_CSV_URLS){
     try{
       const rows = parsePivotCapacity(await fetchCsv(url));
@@ -1416,15 +1546,23 @@ async function loadCapacitySheet(){
       console.warn("Pivot capacity fetch failed:", url, err);
     }
   }
+  try{
+    const rows = parsePivotGviz(await fetchGvizJsonp(SHEET_ID, "gid="+PIVOT_GID));
+    if(rows.length){
+      lastCapacityRows = rows;
+      lastCapacityAt = Date.now();
+      return rows;
+    }
+  }catch(err){
+    console.warn("Pivot gviz fetch failed:", err);
+  }
   if(lastCapacityRows.some(r=>r.source==="pivot")) return lastCapacityRows;
   if(lastCapacityRows.length && (Date.now()-lastCapacityAt) < CAPACITY_REFRESH_MS){
     return lastCapacityRows;
   }
   for(const url of CAPACITY_CSV_URLS){
     try{
-      const text = await fetchCsv(url);
-      const parsed = Papa.parse(text, {header:true, skipEmptyLines:true});
-      const rows = parsed.data.map(normalizeCapacityRow).filter(Boolean);
+      const rows = parseCsv(await fetchCsv(url), true).map(normalizeCapacityRow).filter(Boolean);
       if(rows.length){
         lastCapacityRows = rows;
         lastCapacityAt = Date.now();
@@ -1440,10 +1578,13 @@ async function loadCapacitySheet(){
 // محول الشيت. InboundClient بيناديه لما mode=sheet. متستدعوهوش من الأزرار مباشرة.
 window.InboundSheetAdapter = {
   async load(){
-    if(typeof Papa === "undefined") throw new Error("CSV parser unavailable");
-    const [text, capacity] = await Promise.all([fetchCsv(CSV_BASE_URL), loadCapacitySheet()]);
-    const parsed = Papa.parse(text, {header:true, skipEmptyLines:true});
-    const receipts = parsed.data.map(normalizeRow).filter(Boolean);
+    const receiptsP = loadReceivingRows();
+    const capacityP = loadCapacitySheet().catch(err=>{
+      console.warn("Capacity refresh failed; using last known values:", err);
+      return lastCapacityRows;
+    });
+    const receipts = await receiptsP;
+    const capacity = await capacityP;
     if(!receipts.length) throw new Error("No data rows found in sheet");
     return {
       source:"sheet",
@@ -1494,6 +1635,7 @@ async function loadData(opts){
     lastSnapHash = snapHash(RAW_DATA, RAW_CAPACITY);
     saveSnapCache(snap);
     applyBackendSettings(snap.settings);
+    liveSession = snap.source === "sheet" || snap.source === "live";
     const badge = snap.source === "mock" ? "mock" : snap.source === "firebase" ? "firebase" : "live";
     setLiveBadge(badge);
     const errBox = el("sheetError");
@@ -1509,7 +1651,7 @@ async function loadData(opts){
         RAW_DATA = canonicalizeReceipts(FALLBACK_DATA);
       }
     }
-    setLiveBadge("cached");
+    if(!liveSession) setLiveBadge("cached");
     const errBox = el("sheetError");
     if(errBox && !hadData && !readSnapCache()){
       errBox.hidden = false;
