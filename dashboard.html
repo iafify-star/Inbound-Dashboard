@@ -409,13 +409,12 @@
   <div class="kpis">
     <div class="kpi c1"><span class="icon">📥</span><div class="label" data-i18n="kpiAsn">ASNs received / planned</div><div class="value" id="kpiAsn">0 / 0</div><div class="sub" id="kpiAsnSub">Received 0 of 0 ASNs</div></div>
     <div class="kpi c2"><span class="icon">📦</span><div class="label" data-i18n="kpiQty">Quantity received / planned</div><div class="value" id="kpiQty">0 / 0</div><div class="sub" id="kpiQtySub">Received 0 of 0 units</div></div>
-    <div class="kpi c3"><span class="icon">🏭</span><div class="label" data-i18n="kpiVendors">Vendors</div><div class="value" id="kpiVendors">0</div><div class="sub" data-i18n="kpiVendorsSub">Unique vendors — counted once even with many ASNs</div></div>
-    <div class="kpi c5"><span class="icon">✅</span><div class="label" data-i18n="kpiVendorsGot">Vendors received</div><div class="value" id="kpiVendorsGot">0</div><div class="sub" data-i18n="kpiVendorsGotSub">Vendors with quantity received, counted once</div></div>
+    <div class="kpi c3"><span class="icon">🏭</span><div class="label" data-i18n="kpiVendors">Vendors</div><div class="value" id="kpiVendors">0</div></div>
+    <div class="kpi c5"><span class="icon">✅</span><div class="label" data-i18n="kpiVendorsGot">Vendors received</div><div class="value" id="kpiVendorsGot">0</div></div>
   </div>
 
   <div class="panel" style="margin-bottom:16px;">
     <h3 data-i18n="capTitle">📊 Facility receiving capacity</h3>
-    <p class="desc" id="capDesc" data-i18n="capDescDefault">Daily receiving capacity vs. quantity received</p>
     <div id="capacityBars"></div>
   </div>
 
@@ -430,6 +429,12 @@
       <p class="desc" data-i18n="topVendorsDesc">Top 10 vendors by quantity received</p>
       <div class="chart-box"><canvas id="chartTopVendors"></canvas></div>
     </div>
+  </div>
+
+  <div class="panel" style="margin-bottom:16px;">
+    <h3 data-i18n="empPerf">Inbound employee performance</h3>
+    <p class="desc" data-i18n="empPerfDesc">Live quantity and ASNs received per employee</p>
+    <div class="chart-box tall"><canvas id="chartEmpPerf"></canvas></div>
   </div>
 
   <div class="panel table-panel">
@@ -549,7 +554,8 @@ const I18N = {
     topVendors:"Top 10 vendors by quantity",
     topVendorsDesc:"Live top 10 vendors by quantity received",
     empPerf:"Inbound employee performance",
-    empPerfDesc:"Receipts handled per inbound employee",
+    empPerfDesc:"Live quantity and ASNs received per employee",
+    tooltipEmp:"{qty} units · {n} ASNs",
     hourly:"Receiving throughout the day",
     hourlyDesc:"Inbound receipts by hour of day",
     skuTitle:"SKU count per vendor — Top 10",
@@ -693,7 +699,8 @@ const I18N = {
     topVendors:"أعلى 10 موردين حسب الكمية",
     topVendorsDesc:"أعلى 10 موردين حسب الكمية المستلمة لايف",
     empPerf:"أداء موظفي inbound",
-    empPerfDesc:"عدد الاستلامات لكل موظف inbound",
+    empPerfDesc:"الكمية وعدد الـ ASN المستلمة لكل موظف — لايف أول بأول",
+    tooltipEmp:"{qty} وحدة · {n} ASN",
     hourly:"توزيع الاستلام خلال اليوم",
     hourlyDesc:"الاستلامات الواردة حسب الساعة",
     skuTitle:"عدد الـ SKU لكل مورد — أعلى 10",
@@ -1002,6 +1009,7 @@ let charts = {};
 let sortState = {key:"arrival", dir:-1};
 let datesInitialized = false;
 let vendorFilter = "";
+let empFilter = "";
 let exceptionType = "";
 let lastChartKey = "";
 let lastChartSkin = "";
@@ -1485,7 +1493,10 @@ function syncDateChips(){
 function applyClickFilter(kind, value){
   if(!value) return;
   if(kind==="facility" && el("fFacility")) el("fFacility").value = value;
-  if(kind==="emp" && el("fEmp")) el("fEmp").value = value;
+  if(kind==="emp"){
+    if(el("fEmp")) el("fEmp").value = value;
+    empFilter = empFilter === value ? "" : value;
+  }
   if(kind==="status" && el("fStatus")) el("fStatus").value = value;
   if(kind==="vendor"){
     vendorFilter = value;
@@ -1498,7 +1509,10 @@ function applyClickFilter(kind, value){
 
 function clearClickFilter(kind){
   if(kind==="facility" && el("fFacility")) el("fFacility").value = "";
-  if(kind==="emp" && el("fEmp")) el("fEmp").value = "";
+  if(kind==="emp"){
+    if(el("fEmp")) el("fEmp").value = "";
+    empFilter = "";
+  }
   if(kind==="status" && el("fStatus")) el("fStatus").value = "";
   if(kind==="vendor") vendorFilter = "";
   if(kind==="issue") exceptionType = "";
@@ -1513,7 +1527,7 @@ function renderFilterChips(){
   const emp = (el("fEmp") && el("fEmp").value) || "";
   const status = (el("fStatus") && el("fStatus").value) || "";
   if(fac) chips.push({kind:"facility", text:t("chipFacility",{n:fac})});
-  if(emp) chips.push({kind:"emp", text:t("chipEmp",{n:emp})});
+  if(emp || empFilter) chips.push({kind:"emp", text:t("chipEmp",{n:emp || empFilter})});
   if(status) chips.push({kind:"status", text:t("chipStatus",{n:status})});
   if(vendorFilter) chips.push({kind:"vendor", text:t("chipVendor",{n:vendorFilter})});
   bar.innerHTML = chips.map(c=>`
@@ -1527,7 +1541,7 @@ function nonDateMatch(r){
   const status = (el("fStatus") && el("fStatus").value) || "";
   const search = ((el("fSearch") && el("fSearch").value) || "").trim().toLowerCase();
   if(facility && r.facility!==facility) return false;
-  if(emp && r.emp!==emp) return false;
+  if((emp || empFilter) && r.emp!==(emp || empFilter)) return false;
   if(status && r.status!==status) return false;
   if(vendorFilter && r.vendor!==vendorFilter) return false;
   if(search){
@@ -1555,6 +1569,7 @@ function initFilterEvents(){
       if(el(id)) el(id).value = "";
     });
     vendorFilter = "";
+    empFilter = "";
     exceptionType = "";
     applyDateChip("today");
   });
@@ -1787,11 +1802,12 @@ function chartViewKey(data){
   const emp = (el("fEmp") && el("fEmp").value) || "";
   const status = (el("fStatus") && el("fStatus").value) || "";
   const core = (data||[]).map(r => [r.date,r.asn,r.qty,r.totalRo,r.facility,r.emp,r.vendor,r.status].join("|")).join(";");
-  return [theme, currentLang, from, to, fac, emp, status, vendorFilter, core].join("::");
+  return [theme, currentLang, from, to, fac, emp, empFilter, status, vendorFilter, core].join("::");
 }
 
 function upsertChart(name, canvas, config){
   const vendors = config.$vendors;
+  const emps = config.$emps;
   const existing = charts[name];
   if(existing){
     existing.data.labels = config.data.labels;
@@ -1803,6 +1819,7 @@ function upsertChart(name, canvas, config){
       if(next.backgroundColor) ds.backgroundColor = next.backgroundColor;
     });
     if(vendors) existing.$vendors = vendors;
+    if(emps) existing.$emps = emps;
     existing.update();
     return existing;
   }
@@ -1812,6 +1829,7 @@ function upsertChart(name, canvas, config){
     options: config.options
   });
   if(vendors) chart.$vendors = vendors;
+  if(emps) chart.$emps = emps;
   charts[name] = chart;
   return chart;
 }
@@ -1824,7 +1842,7 @@ function renderCharts(data){
     lastChartKey = "";
   }
   const key = chartViewKey(data);
-  if(key === lastChartKey && charts.facilityQty && charts.topVendors) return;
+  if(key === lastChartKey && charts.facilityQty && charts.topVendors && (!el("chartEmpPerf") || charts.empPerf)) return;
   lastChartKey = key;
   if(typeof Chart === "undefined") return;
   applyChartDefaults();
@@ -1835,14 +1853,22 @@ function renderCharts(data){
   };
   const chartFacilityQty = can("chartFacilityQty");
   const chartTopVendors = can("chartTopVendors");
-  if(!chartFacilityQty && !chartTopVendors) return;
+  const empCanvas = can("chartEmpPerf");
+  if(!chartFacilityQty && !chartTopVendors && !empCanvas) return;
 
   const byFacilityQty = {};
   const byVendorQty = {};
+  const byEmp = {};
   data.forEach(r=>{
     const qty = r.qty || 0;
     if(r.facility) byFacilityQty[r.facility] = (byFacilityQty[r.facility]||0)+qty;
     if(r.vendor && qty) byVendorQty[r.vendor] = (byVendorQty[r.vendor]||0)+qty;
+    const name = (r.emp||"").trim();
+    if(name){
+      if(!byEmp[name]) byEmp[name] = {qty:0, asns:new Set()};
+      byEmp[name].qty += qty;
+      if(isReceivedRow(r)) byEmp[name].asns.add(asnKey(r));
+    }
   });
   const facLabels = Object.keys(byFacilityQty).sort();
   const topVendorsQty = Object.entries(byVendorQty).sort((a,b)=>b[1]-a[1]).slice(0,10);
@@ -1905,6 +1931,47 @@ function renderCharts(data){
       }
     }
   });
+
+  const empRows = Object.entries(byEmp)
+    .map(([name,v])=>({name, qty:v.qty, asns:v.asns.size}))
+    .filter(e=>e.qty>0 || e.asns>0)
+    .sort((a,b)=>b.qty-a.qty || b.asns-a.asns);
+
+  if(empCanvas) upsertChart("empPerf", empCanvas, {
+    type:"bar",
+    $emps: empRows,
+    data:{
+      labels: empRows.map(e=>e.name.length>22 ? e.name.slice(0,22)+"…" : e.name),
+      datasets:[{
+        label:t("qtyReceived"),
+        data: empRows.map(e=>e.qty),
+        backgroundColor:"#1fb08f",
+        borderRadius:6,
+        maxBarThickness:22,
+      }]
+    },
+    options:{
+      indexAxis:"y",
+      responsive:true, maintainAspectRatio:false,
+      animation:{duration:450},
+      onClick:(_e, els, chart)=>{
+        if(!els.length) return;
+        const list = chart.$emps || [];
+        if(list[els[0].index]) applyClickFilter("emp", list[els[0].index].name);
+      },
+      plugins:{ legend:{display:false},
+        tooltip:{ callbacks:{
+          label:(c)=>{
+            const row = (c.chart.$emps || [])[c.dataIndex];
+            return t("tooltipEmp",{qty:fmt(c.parsed.x), n:fmt(row ? row.asns : 0)});
+          }
+        } } },
+      scales:{
+        x:{ grid:{color:tc.grid}, ticks:{callback:v=>fmt(v)} },
+        y:{ grid:{display:false}, ticks:{font:{size:11}} }
+      }
+    }
+  });
 }
 
 // ===================== CAPACITY PANEL =====================
@@ -1919,13 +1986,7 @@ function renderCapacity(data){
   const capMap = capacityMapForDates(capDates);
   const hasDatedCapacity = RAW_CAPACITY.some(r=>r.date);
   const capDesc = document.getElementById("capDesc");
-  if(capDesc){
-    if(RAW_CAPACITY.some(r=>r.source==="pivot")) capDesc.textContent = t("capPivot");
-    else if(selectedDate) capDesc.textContent = t("capOne",{date:enDate(selectedDate)});
-    else if(uniqueDates.length===1) capDesc.textContent = t("capOne",{date:enDate(uniqueDates[0])});
-    else if(uniqueDates.length>1) capDesc.textContent = t("capMany",{n:uniqueDates.length, from:enDate(uniqueDates[0]), to:enDate(uniqueDates[uniqueDates.length-1])});
-    else capDesc.textContent = t("capDescDefault");
-  }
+  if(capDesc) capDesc.hidden = true;
 
   let totalActual = 0, totalCapacity = 0;
   const rowsHtml = CAPACITY_ORDER.map(fac=>{
