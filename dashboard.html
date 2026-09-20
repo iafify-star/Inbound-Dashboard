@@ -24,7 +24,7 @@
 </script>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js" onerror="this.onerror=null;this.src='https://unpkg.com/papaparse@5.4.1/papaparse.min.js'"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" onerror="this.onerror=null;this.src='https://unpkg.com/chart.js@4.4.4/dist/chart.umd.min.js'"></script>
-<script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.2/dist/html2pdf.bundle.min.js" onerror="this.onerror=null;this.src='https://unpkg.com/html2pdf.js@0.10.2/dist/html2pdf.bundle.min.js'"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js" onerror="this.onerror=null;this.src='https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js'"></script>
 <style>
   :root{
     --bg:#f4f5f7;
@@ -3038,23 +3038,84 @@ function reportTopVendors(list, key, limit){
     .sort((a,b)=>(b[key]||0)-(a[key]||0) || (b.qty||0)-(a.qty||0) || a.name.localeCompare(b.name))
     .slice(0, limit||5);
 }
-function reportNb(s){
-  return escapeHtml(String(s==null?"":s)).replace(/ /g, "&nbsp;");
+function reportN(n){
+  return (Number(n)||0).toLocaleString("en-US");
 }
 function reportPair(a, b){
-  const nfmt = n => (Number(n)||0).toLocaleString("en-US");
-  return `${nfmt(a)}&nbsp;/&nbsp;${nfmt(b)}`;
+  return reportN(a) + " / " + reportN(b);
 }
-function reportVendorTableRows(list, cellsFn, cols){
-  if(!list.length) return `<tr><td colspan="${cols}">${reportNb("No vendors")}</td></tr>`;
-  return list.map((v,i)=>`<tr>
-      <td class="rank">${i+1}</td>
-      <td>${reportNb(v.name)}</td>
-      ${cellsFn(v)}
-    </tr>`).join("");
+function reportHasArabic(s){
+  return /[\u0600-\u06FF]/.test(String(s||""));
 }
-function buildDailyReportHtml(day, data, logoSrc){
-  const nfmt = n => (Number(n)||0).toLocaleString("en-US");
+function reportRgb(hex){
+  const n = String(hex||"#000000").replace("#","");
+  return [parseInt(n.slice(0,2),16), parseInt(n.slice(2,4),16), parseInt(n.slice(4,6),16)];
+}
+function reportFill(doc, x, y, w, h, hex){
+  doc.setFillColor.apply(doc, reportRgb(hex));
+  doc.rect(x, y, w, h, "F");
+}
+function reportText(doc, text, x, y, opt){
+  opt = opt || {};
+  const str = String(text==null?"":text);
+  const size = opt.size || 10;
+  const color = opt.color || "#141414";
+  const align = opt.align || "left";
+  const maxW = opt.maxWidth;
+  if(reportHasArabic(str)){
+    reportArabicStamp(doc, str, x, y, {size, color, bold: !!opt.bold, align, maxWidth: maxW});
+    return;
+  }
+  doc.setFont("helvetica", opt.bold ? "bold" : "normal");
+  doc.setFontSize(size);
+  doc.setTextColor.apply(doc, reportRgb(color));
+  if(opt.wrap && maxW){
+    doc.text(doc.splitTextToSize(str, maxW), x, y, {align});
+    return;
+  }
+  let out = str;
+  if(maxW && doc.getTextWidth(out) > maxW){
+    while(out.length > 3 && doc.getTextWidth(out + "...") > maxW) out = out.slice(0, -1);
+    out += "...";
+  }
+  doc.text(out, x, y, {align});
+}
+function reportArabicStamp(doc, text, x, y, opt){
+  const size = opt.size || 10;
+  const color = opt.color || "#141414";
+  const align = opt.align || "left";
+  const maxW = opt.maxWidth || 80;
+  const fontPx = size * 1.333;
+  const canvas = document.createElement("canvas");
+  const probe = canvas.getContext("2d");
+  probe.font = (opt.bold ? "700 " : "600 ") + fontPx + "px Cairo, Tahoma, Arial";
+  let label = String(text);
+  const maxPx = maxW * 3.78;
+  if(probe.measureText(label).width > maxPx){
+    while(label.length > 3 && probe.measureText(label + "...").width > maxPx) label = label.slice(0, -1);
+    label += "...";
+  }
+  const pad = 3;
+  const w = Math.ceil(probe.measureText(label).width + pad * 2);
+  const h = Math.ceil(fontPx * 1.6);
+  canvas.width = Math.max(2, w * 2);
+  canvas.height = Math.max(2, h * 2);
+  const ctx = canvas.getContext("2d");
+  ctx.scale(2, 2);
+  ctx.font = (opt.bold ? "700 " : "600 ") + fontPx + "px Cairo, Tahoma, Arial";
+  ctx.fillStyle = color;
+  ctx.textBaseline = "middle";
+  ctx.direction = "rtl";
+  ctx.textAlign = "right";
+  ctx.fillText(label, w - pad, h / 2);
+  const wMm = w * 0.264583;
+  const hMm = h * 0.264583;
+  let imgX = x;
+  if(align === "right") imgX = x - wMm;
+  else if(align === "center") imgX = x - wMm / 2;
+  try{ doc.addImage(canvas.toDataURL("image/png"), "PNG", imgX, y - hMm * 0.72, wMm, hMm); }catch(e){}
+}
+function buildDailyReportModel(day, data){
   const rows = (data||[]).filter(r => r.asn || r.vendor);
   const plannedAsn = new Set(rows.map(asnKey));
   const receivedAsn = new Set(rows.filter(isReceivedRow).map(asnKey));
@@ -3087,237 +3148,208 @@ function buildDailyReportHtml(day, data, logoSrc){
     const v = byFac[fac] || {qty:0, ro:0, asn:new Set(), got:new Set()};
     const cap = capMap[fac] || 0;
     totalCap += cap;
-    const pct = reportPct(v.qty, cap);
-    const cls = pct>=100 ? "hot" : pct>0 ? "ok" : "";
-    return `<tr>
-      <td><span class="code">${reportNb(fac)}</span>${FACILITY_SPECIALTY[fac] ? "&nbsp;&nbsp;"+reportNb(FACILITY_SPECIALTY[fac]) : ""}</td>
-      <td class="num">${reportPair(v.got.size, v.asn.size)}</td>
-      <td class="num">${reportPair(v.qty, v.ro)}</td>
-      <td class="num">${reportPair(v.qty, cap)}</td>
-      <td class="num ${cls}">${pct}%</td>
-    </tr>`;
-  }).join("");
+    return {
+      name: facilityReportName(fac),
+      asn: reportPair(v.got.size, v.asn.size),
+      qty: reportPair(v.qty, v.ro),
+      cap: reportPair(v.qty, cap),
+      pct: reportPct(v.qty, cap)
+    };
+  });
   const asnPct = reportPct(receivedAsn.size, plannedAsn.size);
   const qtyPct = reportPct(receivedQty, plannedQty);
   const venPct = reportPct(vendorsGot.size, vendors.size);
   const capPct = reportPct(receivedQty, totalCap);
   const vendorStats = reportVendorStats(rows);
-  const topQtyVendors = reportTopVendors(vendorStats, "qty", 5);
-  const topSkuVendors = reportTopVendors(vendorStats, "sku", 5);
-  const topPlanVendors = reportTopVendors(vendorStats, "planned", 5);
-  const qtyVendorRows = reportVendorTableRows(topQtyVendors, v=>`<td class="num">${nfmt(v.qty)}</td>`, 3);
-  const skuVendorRows = reportVendorTableRows(topSkuVendors, v=>`<td class="num">${nfmt(v.sku)}</td>`, 3);
-  const planVendorRows = reportVendorTableRows(topPlanVendors, v=>{
-    const pct = reportPct(v.qty, v.planned);
-    const cls = pct>=100 ? "ok" : pct===0 ? "hot" : "";
-    return `<td class="num">${nfmt(v.planned)}</td><td class="num">${nfmt(v.qty)}</td><td class="num ${cls}">${pct}%</td>`;
-  }, 5);
-  const logo = logoSrc || new URL("assets/noon-minutes-logo.png", location.href).href;
-  return `<!DOCTYPE html>
-<html lang="en" dir="ltr" style="color-scheme:only light">
-<head>
-<meta charset="utf-8" />
-<meta name="color-scheme" content="light only" />
-<title>Daily Receiving Report — ${escapeHtml(reportDateLabel(day))}</title>
-<style>
-  @page { size: A4; margin: 0; }
-  html, body { margin: 0; padding: 0; background: #ffffff; color: #141414; color-scheme: only light; }
-  body { width: 794px; height: 1123px; overflow: hidden; font-family: Arial, Helvetica, sans-serif; }
-  table.sheet { width: 794px; height: 1123px; border-collapse: collapse; background: #ffffff; table-layout: fixed; }
-  table.sheet > tbody > tr > td { padding: 0; }
-  .hero { background: #f5e023; }
-  .hero-inner { width: 100%; border-collapse: collapse; }
-  .hero-inner td { background: #f5e023; padding: 20px 32px; vertical-align: middle; }
-  .hero img { height: 46px; width: auto; background: #f5e023; display: block; }
-  .hero-text { color: #141414; }
-  .hero-text .team { font-size: 12px; font-weight: 800; }
-  .hero-text h1 { margin: 3px 0 2px; font-size: 22px; font-weight: 800; }
-  .hero-text .when { font-size: 13px; font-weight: 700; color: #3a3a3a; }
-  .main { padding: 16px 32px 10px; background: #ffffff; vertical-align: top; }
-  table.kpis { width: 100%; border-collapse: collapse; }
-  table.kpis > tbody > tr > td { width: 25%; vertical-align: top; padding: 0 4px; }
-  table.kpis > tbody > tr > td:first-child { padding-left: 0; }
-  table.kpis > tbody > tr > td:last-child { padding-right: 0; }
-  .card { padding: 10px 11px; }
-  .card .l { font-size: 12px; font-weight: 800; padding-bottom: 8px; }
-  table.kv { width: 100%; border-collapse: collapse; }
-  table.kv td { padding: 3px 0; font-size: 11px; font-weight: 700; color: #555555; }
-  table.kv td.val { text-align: right; font-size: 16px; font-weight: 800; color: #141414; }
-  .card .s { font-size: 10px; font-weight: 700; padding-top: 8px; }
-  .yellow { background: #fff6b0; color: #141414; }
-  .rose { background: #fde8e8; color: #141414; }
-  .ink { background: #141414; color: #ffffff; }
-  .ink table.kv td { color: #f5e023; }
-  .ink table.kv td.val { color: #ffffff; }
-  .ink .s { color: #f5e023; }
-  .mint { background: #e4f7f2; color: #141414; }
-  .mint .s { color: #18795f; }
-  .h2 { margin: 14px 0 6px; font-size: 12px; font-weight: 800; background: #141414; color: #ffffff; padding: 7px 10px; }
-  table.data { width: 100%; border-collapse: collapse; background: #ffffff; }
-  table.data th, table.data td {
-    padding: 6px 7px; border-bottom: 1px solid #eeeeee;
-    text-align: left; vertical-align: middle; background: #ffffff; color: #141414;
+  return {
+    day,
+    label: reportDateLabel(day),
+    kpis: {
+      asnGot: receivedAsn.size,
+      asnPlan: plannedAsn.size,
+      qtyGot: receivedQty,
+      qtyPlan: plannedQty,
+      venGot: vendorsGot.size,
+      venPlan: vendors.size,
+      cap: totalCap,
+      asnPct,
+      qtyPct,
+      venPct,
+      capPct
+    },
+    facs: facRows,
+    topQty: reportTopVendors(vendorStats, "qty", 5),
+    topSku: reportTopVendors(vendorStats, "sku", 5),
+    topPlan: reportTopVendors(vendorStats, "planned", 5)
+  };
+}
+function reportSectionHead(doc, x, y, w, title){
+  reportFill(doc, x, y, w, 7, "#141414");
+  reportText(doc, title, x + 2.4, y + 4.8, {size: 10, bold: true, color: "#ffffff"});
+}
+function reportDrawCols(doc, x, y, cols, values, colors, sizes, bolds){
+  let cx = x;
+  cols.forEach((col, i)=>{
+    const tx = col.align === "right" ? cx + col.w - 1.6 : cx + (col.pad == null ? 1.6 : col.pad);
+    reportText(doc, values[i], tx, y, {
+      size: sizes[i],
+      bold: !!bolds[i],
+      color: colors[i],
+      align: col.align || "left",
+      maxWidth: col.w - 3.2
+    });
+    cx += col.w;
+  });
+}
+function drawDailyReportPdf(doc, model, logo){
+  const W = 210, H = 297, x0 = 10, contentW = 190;
+  reportFill(doc, 0, 0, W, H, "#ffffff");
+  reportFill(doc, 0, 0, W, 28, "#f5e023");
+  if(logo && String(logo).slice(0,5) === "data:"){
+    try{ doc.addImage(logo, logo.indexOf("image/jpeg") >= 0 ? "JPEG" : "PNG", 10, 6, 16, 16); }catch(e){}
   }
-  table.data th { font-size: 10px; font-weight: 800; color: #555555; background: #f7f7f8; }
-  table.data td { font-size: 11px; }
-  table.data td.num, table.data th.num { text-align: right; }
-  table.data td.rank, table.data th.rank { width: 22px; color: #888888; font-weight: 800; }
-  table.data tr.total td { font-weight: 800; background: #fff6b0; }
-  .code { font-family: Consolas, "Courier New", monospace; font-size: 11px; font-weight: 800; }
-  .ok { color: #18795f; font-weight: 800; }
-  .hot { color: #db3332; font-weight: 800; }
-  table.split { width: 100%; border-collapse: collapse; margin-top: 12px; }
-  table.split > tbody > tr > td { width: 50%; vertical-align: top; padding: 0; }
-  table.split > tbody > tr > td.left { padding-right: 8px; }
-  table.split > tbody > tr > td.right { padding-left: 8px; }
-  table.split .h2 { margin-top: 0; }
-  .block { margin-top: 12px; }
-  .foot { background: #141414; }
-  .foot-inner { width: 100%; border-collapse: collapse; }
-  .foot-inner td { background: #141414; color: #ffffff; padding: 8px 32px 4px; font-size: 11px; font-weight: 700; }
-  .mark { background: #f5e023; color: #141414; padding: 3px 8px; font-size: 9px; font-weight: 800; }
-  .credit { text-align: center; color: #f5e023; font-size: 11px; font-weight: 800; padding: 2px 32px 10px; }
-</style>
-</head>
-<body>
-  <table class="sheet">
-    <tr>
-      <td class="hero">
-        <table class="hero-inner">
-          <tr>
-            <td style="width:70px"><img src="${escapeHtml(logo)}" alt="noon minutes" /></td>
-            <td class="hero-text">
-              <div class="team">${reportNb("Inbound Team")}</div>
-              <h1>${reportNb("Daily Receiving Report")}</h1>
-              <div class="when">${reportNb(reportDateLabel(day))}</div>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-    <tr>
-      <td class="main">
-        <table class="kpis">
-          <tr>
-            <td>
-              <div class="card yellow">
-                <div class="l">${reportNb("ASNs today")}</div>
-                <table class="kv">
-                  <tr><td>${reportNb("Received")}</td><td class="val">${nfmt(receivedAsn.size)}</td></tr>
-                  <tr><td>${reportNb("Planned")}</td><td class="val">${nfmt(plannedAsn.size)}</td></tr>
-                </table>
-                <div class="s">${reportNb(asnPct + "% of planned ASNs are received")}</div>
-              </div>
-            </td>
-            <td>
-              <div class="card rose">
-                <div class="l">${reportNb("Quantity (units)")}</div>
-                <table class="kv">
-                  <tr><td>${reportNb("Received")}</td><td class="val">${nfmt(receivedQty)}</td></tr>
-                  <tr><td>${reportNb("Planned")}</td><td class="val">${nfmt(plannedQty)}</td></tr>
-                </table>
-                <div class="s">${reportNb(qtyPct + "% of planned units are received")}</div>
-              </div>
-            </td>
-            <td>
-              <div class="card ink">
-                <div class="l">${reportNb("Vendors")}</div>
-                <table class="kv">
-                  <tr><td>${reportNb("Received")}</td><td class="val">${nfmt(vendorsGot.size)}</td></tr>
-                  <tr><td>${reportNb("Planned")}</td><td class="val">${nfmt(vendors.size)}</td></tr>
-                </table>
-                <div class="s">${reportNb(venPct + "% of planned vendors are received")}</div>
-              </div>
-            </td>
-            <td>
-              <div class="card mint">
-                <div class="l">${reportNb("Warehouse capacity")}</div>
-                <table class="kv">
-                  <tr><td>${reportNb("Used today")}</td><td class="val">${nfmt(receivedQty)}</td></tr>
-                  <tr><td>${reportNb("Daily limit")}</td><td class="val">${nfmt(totalCap)}</td></tr>
-                </table>
-                <div class="s">${reportNb(capPct + "% of today's warehouse capacity used")}</div>
-              </div>
-            </td>
-          </tr>
-        </table>
-        <div class="h2">${reportNb("Facilities")}</div>
-        <table class="data">
-          <thead>
-            <tr>
-              <th>${reportNb("Facility")}</th>
-              <th class="num">${reportNb("ASN received / planned")}</th>
-              <th class="num">${reportNb("Qty / Total RO")}</th>
-              <th class="num">${reportNb("Qty / Capacity")}</th>
-              <th class="num">%</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${facRows}
-            <tr class="total">
-              <td>${reportNb("Total")}</td>
-              <td class="num">${reportPair(receivedAsn.size, plannedAsn.size)}</td>
-              <td class="num">${reportPair(receivedQty, plannedQty)}</td>
-              <td class="num">${reportPair(receivedQty, totalCap)}</td>
-              <td class="num">${capPct}%</td>
-            </tr>
-          </tbody>
-        </table>
-        <table class="split">
-          <tr>
-            <td class="left">
-              <div class="h2">${reportNb("Top 5 vendors by quantity")}</div>
-              <table class="data">
-                <thead>
-                  <tr><th class="rank">#</th><th>${reportNb("Vendor")}</th><th class="num">${reportNb("Quantity")}</th></tr>
-                </thead>
-                <tbody>${qtyVendorRows}</tbody>
-              </table>
-            </td>
-            <td class="right">
-              <div class="h2">${reportNb("Top 5 vendors by SKU")}</div>
-              <table class="data">
-                <thead>
-                  <tr><th class="rank">#</th><th>${reportNb("Vendor")}</th><th class="num">SKU</th></tr>
-                </thead>
-                <tbody>${skuVendorRows}</tbody>
-              </table>
-            </td>
-          </tr>
-        </table>
-        <div class="block">
-          <div class="h2">${reportNb("Top 5 vendors by planned quantity")}</div>
-          <table class="data">
-            <thead>
-              <tr>
-                <th class="rank">#</th>
-                <th>${reportNb("Vendor")}</th>
-                <th class="num">${reportNb("Planned")}</th>
-                <th class="num">${reportNb("Received")}</th>
-                <th class="num">%</th>
-              </tr>
-            </thead>
-            <tbody>${planVendorRows}</tbody>
-          </table>
-        </div>
-      </td>
-    </tr>
-    <tr>
-      <td class="foot">
-        <table class="foot-inner">
-          <tr>
-            <td>${reportNb("Inbound Daily Report")}&nbsp;·&nbsp;${reportNb(reportDateLabel(day))}</td>
-            <td style="text-align:right"><span class="mark">${reportNb("noon MINUTES")}</span></td>
-          </tr>
-          <tr>
-            <td colspan="2" class="credit">${reportNb("Designed by Ibrahim Afify")}</td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
+  reportText(doc, "Inbound Team", 30, 9.2, {size: 10, bold: true});
+  reportText(doc, "Daily Receiving Report", 30, 16.4, {size: 16, bold: true});
+  reportText(doc, model.label, 30, 22.8, {size: 10, bold: true, color: "#3a3a3a"});
+
+  const cards = [
+    {bg:"#fff6b0", title:"ASNs today", a:"Received", av:model.kpis.asnGot, b:"Planned", bv:model.kpis.asnPlan, foot: model.kpis.asnPct + "% of planned ASNs are received", titleC:"#141414", labC:"#555555", valC:"#141414", footC:"#141414"},
+    {bg:"#fde8e8", title:"Quantity (units)", a:"Received", av:model.kpis.qtyGot, b:"Planned", bv:model.kpis.qtyPlan, foot: model.kpis.qtyPct + "% of planned units are received", titleC:"#141414", labC:"#555555", valC:"#141414", footC:"#141414"},
+    {bg:"#141414", title:"Vendors", a:"Received", av:model.kpis.venGot, b:"Planned", bv:model.kpis.venPlan, foot: model.kpis.venPct + "% of planned vendors are received", titleC:"#ffffff", labC:"#f5e023", valC:"#ffffff", footC:"#f5e023"},
+    {bg:"#e4f7f2", title:"Warehouse capacity", a:"Used today", av:model.kpis.qtyGot, b:"Daily limit", bv:model.kpis.cap, foot: model.kpis.capPct + "% of today's warehouse capacity used", titleC:"#141414", labC:"#555555", valC:"#141414", footC:"#18795f"}
+  ];
+  const gap = 3, cardW = (contentW - gap * 3) / 4, cardY = 32, cardH = 40;
+  cards.forEach((c, i)=>{
+    const x = x0 + i * (cardW + gap);
+    reportFill(doc, x, cardY, cardW, cardH, c.bg);
+    reportText(doc, c.title, x + 3, cardY + 6.2, {size: 9, bold: true, color: c.titleC, maxWidth: cardW - 6});
+    reportText(doc, c.a, x + 3, cardY + 16, {size: 8, bold: true, color: c.labC});
+    reportText(doc, reportN(c.av), x + cardW - 3, cardY + 16.2, {size: 12, bold: true, color: c.valC, align: "right"});
+    reportText(doc, c.b, x + 3, cardY + 24.2, {size: 8, bold: true, color: c.labC});
+    reportText(doc, reportN(c.bv), x + cardW - 3, cardY + 24.4, {size: 12, bold: true, color: c.valC, align: "right"});
+    reportText(doc, c.foot, x + 3, cardY + 32.2, {size: 7, bold: true, color: c.footC, maxWidth: cardW - 6, wrap: true});
+  });
+
+  let y = 76;
+  reportSectionHead(doc, x0, y, contentW, "Facilities");
+  y += 7;
+  const facCols = [
+    {w: 52, align: "left"},
+    {w: 40, align: "right"},
+    {w: 40, align: "right"},
+    {w: 40, align: "right"},
+    {w: 18, align: "right"}
+  ];
+  reportFill(doc, x0, y, contentW, 6.2, "#f7f7f8");
+  reportDrawCols(doc, x0, y + 4.2, facCols,
+    ["Facility", "ASN received / planned", "Qty / Total RO", "Qty / Capacity", "%"],
+    ["#555555","#555555","#555555","#555555","#555555"],
+    [7.5,7.5,7.5,7.5,7.5],
+    [true,true,true,true,true]
+  );
+  y += 6.2;
+  const facRows = model.facs.concat([{
+    name: "Total",
+    asn: reportPair(model.kpis.asnGot, model.kpis.asnPlan),
+    qty: reportPair(model.kpis.qtyGot, model.kpis.qtyPlan),
+    cap: reportPair(model.kpis.qtyGot, model.kpis.cap),
+    pct: model.kpis.capPct,
+    total: true
+  }]);
+  facRows.forEach(r=>{
+    const rh = 6.4;
+    reportFill(doc, x0, y, contentW, rh, r.total ? "#fff6b0" : "#ffffff");
+    const pctColor = r.pct >= 100 ? "#db3332" : r.pct > 0 ? "#18795f" : "#141414";
+    reportDrawCols(doc, x0, y + 4.3, facCols,
+      [r.name, r.asn, r.qty, r.cap, r.pct + "%"],
+      ["#141414","#141414","#141414","#141414", pctColor],
+      [8,8,8,8,8],
+      [true, !!r.total, !!r.total, !!r.total, true]
+    );
+    doc.setDrawColor(238,238,238);
+    doc.setLineWidth(0.15);
+    doc.line(x0, y + rh, x0 + contentW, y + rh);
+    y += rh;
+  });
+
+  y += 5;
+  const half = (contentW - 4) / 2;
+  const startY = y;
+  function drawVendorSide(x, title, rows, valueKey, valueLabel){
+    reportSectionHead(doc, x, startY, half, title);
+    let yy = startY + 7;
+    reportFill(doc, x, yy, half, 6, "#f7f7f8");
+    reportText(doc, "#", x + 2, yy + 4.1, {size: 7.5, bold: true, color: "#555555"});
+    reportText(doc, "Vendor", x + 8, yy + 4.1, {size: 7.5, bold: true, color: "#555555"});
+    reportText(doc, valueLabel, x + half - 2, yy + 4.1, {size: 7.5, bold: true, color: "#555555", align: "right"});
+    yy += 6;
+    const list = rows || [];
+    for(let i = 0; i < 5; i++){
+      const v = list[i];
+      const rh = 6.2;
+      if(v){
+        reportText(doc, String(i + 1), x + 2, yy + 4.2, {size: 8, bold: true, color: "#888888"});
+        reportText(doc, v.name, x + 8, yy + 4.2, {size: 8, color: "#141414", maxWidth: half - 30});
+        reportText(doc, reportN(v[valueKey]), x + half - 2, yy + 4.2, {size: 8, bold: true, align: "right"});
+      }else if(i === 0 && !list.length){
+        reportText(doc, "No vendors", x + 8, yy + 4.2, {size: 8, color: "#888888"});
+      }
+      doc.setDrawColor(238,238,238);
+      doc.setLineWidth(0.15);
+      doc.line(x, yy + rh, x + half, yy + rh);
+      yy += rh;
+    }
+    return yy;
+  }
+  const yLeft = drawVendorSide(x0, "Top 5 vendors by quantity", model.topQty, "qty", "Quantity");
+  const yRight = drawVendorSide(x0 + half + 4, "Top 5 vendors by SKU", model.topSku, "sku", "SKU");
+  y = Math.max(yLeft, yRight) + 4;
+
+  reportSectionHead(doc, x0, y, contentW, "Top 5 vendors by planned quantity");
+  y += 7;
+  const pcols = [
+    {w: 8, align: "left", pad: 2},
+    {w: 86, align: "left"},
+    {w: 32, align: "right"},
+    {w: 32, align: "right"},
+    {w: 32, align: "right"}
+  ];
+  reportFill(doc, x0, y, contentW, 6, "#f7f7f8");
+  reportDrawCols(doc, x0, y + 4.1, pcols,
+    ["#", "Vendor", "Planned", "Received", "%"],
+    ["#555555","#555555","#555555","#555555","#555555"],
+    [7.5,7.5,7.5,7.5,7.5],
+    [true,true,true,true,true]
+  );
+  y += 6;
+  const plans = model.topPlan || [];
+  for(let i = 0; i < 5; i++){
+    const v = plans[i];
+    const rh = 6.2;
+    if(v){
+      const pct = reportPct(v.qty, v.planned);
+      const pc = pct >= 100 ? "#18795f" : pct === 0 ? "#db3332" : "#141414";
+      reportDrawCols(doc, x0, y + 4.2, pcols,
+        [String(i + 1), v.name, reportN(v.planned), reportN(v.qty), pct + "%"],
+        ["#888888","#141414","#141414","#141414", pc],
+        [8,8,8,8,8],
+        [true,false,false,false,true]
+      );
+    }else if(i === 0 && !plans.length){
+      reportText(doc, "No vendors", x0 + 10, y + 4.2, {size: 8, color: "#888888"});
+    }
+    doc.setDrawColor(238,238,238);
+    doc.setLineWidth(0.15);
+    doc.line(x0, y + rh, x0 + contentW, y + rh);
+    y += rh;
+  }
+
+  const fh = 16, fy = H - fh;
+  reportFill(doc, 0, fy, W, fh, "#141414");
+  reportText(doc, "Inbound Daily Report  ·  " + model.label, 10, fy + 6, {size: 8, bold: true, color: "#ffffff"});
+  reportFill(doc, W - 42, fy + 2.6, 32, 5.2, "#f5e023");
+  reportText(doc, "noon MINUTES", W - 26, fy + 6.2, {size: 7, bold: true, color: "#141414", align: "center"});
+  reportText(doc, "Designed by Ibrahim Afify", W / 2, fy + 12.4, {size: 9, bold: true, color: "#f5e023", align: "center"});
 }
 function setReportButtonBusy(busy){
   const btn = document.getElementById("btnDailyReport");
@@ -3333,28 +3365,6 @@ function loadScriptInto(doc, src){
     s.onerror = ()=> reject(new Error(src));
     doc.head.appendChild(s);
   });
-}
-function waitForImages(root){
-  const imgs = [...(root.querySelectorAll ? root.querySelectorAll("img") : [])];
-  if(!imgs.length) return Promise.resolve();
-  return Promise.all(imgs.map(img => {
-    if(img.complete && img.naturalWidth) return Promise.resolve();
-    return new Promise(res=>{
-      img.addEventListener("load", res, {once:true});
-      img.addEventListener("error", res, {once:true});
-    });
-  }));
-}
-function mountReportFrame(html){
-  const iframe = document.createElement("iframe");
-  iframe.setAttribute("aria-hidden", "true");
-  iframe.style.cssText = "position:fixed;left:0;top:0;width:794px;height:1123px;overflow:hidden;border:0;background:#ffffff;color-scheme:only light;pointer-events:none;z-index:-1;";
-  document.body.appendChild(iframe);
-  const doc = iframe.contentDocument;
-  doc.open();
-  doc.write(html);
-  doc.close();
-  return iframe;
 }
 function downloadBlob(blob, filename){
   const url = URL.createObjectURL(blob);
@@ -3382,74 +3392,32 @@ async function reportLogoSrc(){
     return url;
   }
 }
-function loadHtml2PdfSrc(doc, src){
-  return loadScriptInto(doc, src);
-}
-async function resolvePdfEngine(iframeWin, iframeDoc){
-  if(iframeWin && typeof iframeWin.html2pdf === "function") return iframeWin;
+async function resolveJsPdf(){
+  const grab = w => (w && w.jspdf && w.jspdf.jsPDF) || (w && w.jsPDF);
+  if(typeof grab(window) === "function") return grab(window);
   const sources = [
-    "https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.2/dist/html2pdf.bundle.min.js",
-    "https://unpkg.com/html2pdf.js@0.10.2/dist/html2pdf.bundle.min.js"
+    "https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js",
+    "https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"
   ];
   for(const src of sources){
     try{
-      await loadHtml2PdfSrc(iframeDoc, src);
-      if(iframeWin && typeof iframeWin.html2pdf === "function") return iframeWin;
+      await loadScriptInto(document, src);
+      if(typeof grab(window) === "function") return grab(window);
     }catch(e){}
   }
-  throw new Error("html2pdf missing");
-}
-async function renderReportPdf(engine, page, filename){
-  const opt = {
-    margin: 0,
-    filename,
-    image: { type: "jpeg", quality: 0.98 },
-    html2canvas: {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: "#ffffff",
-      logging: false,
-      width: 794,
-      height: 1123,
-      windowWidth: 794,
-      windowHeight: 1123,
-      scrollX: 0,
-      scrollY: 0,
-      onclone: function(cloned){
-        cloned.documentElement.style.colorScheme = "only light";
-        cloned.documentElement.style.background = "#ffffff";
-        if(cloned.body){
-          cloned.body.style.colorScheme = "only light";
-          cloned.body.style.background = "#ffffff";
-          cloned.body.style.color = "#141414";
-        }
-      }
-    },
-    jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-    pagebreak: { mode: ["avoid-all"] }
-  };
-  const pdf = await engine.html2pdf().set(opt).from(page).toPdf().get("pdf");
-  for(let i = pdf.internal.getNumberOfPages(); i > 1; i--) pdf.deletePage(i);
-  return pdf.output("blob");
+  throw new Error("jsPDF missing");
 }
 async function downloadDailyReportPdf(day, data){
   const filename = `Inbound-Daily-Report-${day}.pdf`;
-  const logo = await reportLogoSrc();
-  const iframe = mountReportFrame(buildDailyReportHtml(day, data, logo));
-  try{
-    const win = iframe.contentWindow;
-    const doc = iframe.contentDocument;
-    if(!win || !doc) throw new Error("report frame missing");
-    await waitForImages(doc);
-    iframe.style.height = "1123px";
-    await new Promise(res=> setTimeout(res, 80));
-    const page = doc.querySelector(".page") || doc.body;
-    const engine = await resolvePdfEngine(win, doc);
-    const blob = await renderReportPdf(engine, page, filename);
-    if(blob) downloadBlob(blob, filename);
-  }finally{
-    iframe.remove();
+  const JsPDF = await resolveJsPdf();
+  if(document.fonts && document.fonts.ready){
+    try{ await document.fonts.ready; }catch(e){}
   }
+  const logo = await reportLogoSrc();
+  const model = buildDailyReportModel(day, data);
+  const doc = new JsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+  drawDailyReportPdf(doc, model, logo);
+  downloadBlob(doc.output("blob"), filename);
 }
 async function openDailyReport(){
   if(openDailyReport.busy) return;
