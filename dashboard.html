@@ -283,7 +283,11 @@
   .cap-divider{border:none;border-top:1px solid var(--border);margin:18px 0 16px;opacity:.8;}
   .cap-note{font-size:11px;color:var(--muted);margin-top:4px;}
 
+  .yard-row.late{border-color:rgba(219,51,50,.35);}
+  .yard-wait{font-weight:800;color:var(--red);font-size:12px;}
+
   .alert-stack{display:flex;flex-direction:column;gap:8px;margin-bottom:16px;}
+  .alert-stack:empty{display:none;}
   .alert{
     border-radius:12px;padding:12px 14px;font-size:13px;font-weight:600;
     border:1px solid var(--border);background:var(--panel);
@@ -423,12 +427,18 @@
       <label data-i18n="facility">Facility / Warehouse</label>
       <select id="fFacility"><option value="">All</option></select>
     </div>
+    <div class="field">
+      <label data-i18n="employee">Employee</label>
+      <select id="fEmp"><option value="">All</option></select>
+    </div>
     <div class="field grow">
       <label data-i18n="searchLabel">Search vendor / ASN / RO</label>
       <input id="fSearch" type="text" data-i18n-placeholder="searchPh" placeholder="Vendor name or ASN number..." />
     </div>
     <button class="reset" id="btnReset" data-i18n="reset">↺ Reset filters</button>
   </div>
+
+  <div class="alert-stack" id="alertStack"></div>
 
   <div class="kpis">
     <div class="kpi c1"><span class="icon">📥</span><div class="label" data-i18n="kpiAsn">ASNs received / planned</div><div class="value" id="kpiAsn">0 / 0</div><div class="sub" id="kpiAsnSub">Received 0 of 0 ASNs</div></div>
@@ -439,6 +449,22 @@
   <div class="panel" style="margin-bottom:16px;">
     <h3 data-i18n="capTitle">📊 Facility receiving capacity</h3>
     <div id="capacityBars"></div>
+  </div>
+
+  <div class="grid2">
+    <div class="panel">
+      <h3 data-i18n="hourly">Today's ASN timeline</h3>
+      <p class="desc" data-i18n="hourlyDesc">ASNs by arrival hour — Arrive → Dock → Received</p>
+      <div class="chart-box"><canvas id="chartHourly"></canvas></div>
+    </div>
+    <div class="panel yard-panel">
+      <div class="yard-head">
+        <h3 data-i18n="lateTitle" style="margin:0;">Waiting over 1 hour</h3>
+        <span class="yard-count" id="lateCount">0</span>
+      </div>
+      <p class="desc" data-i18n="lateDesc">Arrive or Dock for more than an hour, not received</p>
+      <div class="yard-list" id="lateBody"></div>
+    </div>
   </div>
 
   <div class="grid2">
@@ -625,8 +651,17 @@ const I18N = {
     sortSku:"Largest SKU",
     sortAsn:"Largest ASN",
     tooltipEmp:"{qty} units · {sku} SKU · {n} ASNs",
-    hourly:"Receiving throughout the day",
-    hourlyDesc:"Inbound receipts by hour of day",
+    hourly:"Today's ASN timeline",
+    hourlyDesc:"ASNs by arrival hour — Arrive → Dock → Received",
+    hourlyArrive:"Arrive",
+    hourlyDock:"Dock",
+    hourlyReceived:"Received",
+    lateTitle:"Waiting over 1 hour",
+    lateDesc:"Arrive or Dock for more than an hour, not received",
+    lateEmpty:"No late ASNs",
+    lateWait:"Waiting {n} min",
+    lateWaitLong:"Waiting {h}h {m}m",
+    lateCount:"{n} late",
     skuTitle:"SKU count per vendor — Top 10",
     skuDesc:"Top 10 vendors by SKU count",
     tableTitle:"Detailed receiving log",
@@ -782,8 +817,17 @@ const I18N = {
     sortSku:"الأكبر SKU",
     sortAsn:"الأكبر ASN",
     tooltipEmp:"{qty} وحدة · {sku} SKU · {n} ASN",
-    hourly:"توزيع الاستلام خلال اليوم",
-    hourlyDesc:"الاستلامات الواردة حسب الساعة",
+    hourly:"تايملاين اليوم",
+    hourlyDesc:"الـ ASN حسب ساعة الوصول — Arrive → Dock → Received",
+    hourlyArrive:"Arrive",
+    hourlyDock:"Dock",
+    hourlyReceived:"Received",
+    lateTitle:"متأخر أكتر من ساعة",
+    lateDesc:"وصل Arrive أو Dock من ساعة ومش اتقفل Received",
+    lateEmpty:"مفيش ASN متأخر",
+    lateWait:"مستني {n} د",
+    lateWaitLong:"مستني {h} س {m} د",
+    lateCount:"{n} متأخر",
     skuTitle:"عدد الـ SKU لكل مورد — أعلى 10",
     skuDesc:"أعلى 10 موردين حسب عدد الأصناف",
     tableTitle:"سجل الاستلام التفصيلي",
@@ -928,6 +972,50 @@ function initLang(){
 // أي صف CAIID03 أو CAIID04 بيتحول لـ CAIID03+04 في الفلاتر والشارت والجدول.
 // لو هتدمج مستودعين جداد: ضيفهم هنا + في CAPACITY_ORDER تحت.
 const FACILITY_MERGE = { "CAIID03":"CAIID03+04", "CAIID04":"CAIID03+04" };
+
+// توحيد أسماء الموظفين: نفس الشخص بأسماء مختلفة يتلمّ في اسم واحد.
+const EMP_ALIASES = {
+  "mahmoud reda": "Mahmoud Reda",
+  "mhamoud reda": "Mahmoud Reda",
+  "ahmed hoseny": "Ahmed Hosny",
+  "ahmed hosnay": "Ahmed Hosny",
+  "ahmed hosny": "Ahmed Hosny",
+  "ahmed samy": "Ahmed Samy",
+  "bassem walid": "Bassem Walid",
+  "mahmoud waiied": "Mahmoud Walid",
+  "mahmoud waled": "Mahmoud Walid",
+  "mahmoud walid": "Mahmoud Walid",
+  "mahmoud wallid": "Mahmoud Walid",
+  "omar hsaan": "Omar Hassan",
+  "omar hassan": "Omar Hassan",
+  "elsayed ibrahiem": "Elsayed Ibrahiem",
+};
+
+function empKey(raw){
+  return (raw||"").toLowerCase().replace(/[^a-z]+/g, " ").trim().replace(/\s+/g, " ");
+}
+function titleCaseName(raw){
+  return empKey(raw).replace(/\b\w/g, c => c.toUpperCase());
+}
+function normalizeEmpName(raw){
+  const key = empKey(raw);
+  if(!key) return "";
+  return EMP_ALIASES[key] || titleCaseName(key);
+}
+function empNamesFromCell(raw){
+  return (raw||"").split(/\s*(?:,|\/|&|\band\b)\s*/i).map(normalizeEmpName).filter(Boolean);
+}
+function normalizeEmpCell(raw){
+  return empNamesFromCell(raw).join(", ");
+}
+function uniqueEmps(rows){
+  const set = new Set();
+  (rows||[]).forEach(r => empNamesFromCell(r.emp).forEach(n => set.add(n)));
+  return [...set].sort((a,b)=>a.localeCompare(b));
+}
+function canonicalizeReceipts(rows){
+  return (rows||[]).map(r => r ? Object.assign({}, r, { emp: normalizeEmpCell(r.emp) }) : r);
+}
 
 // ===================== CAPACITY DATA =====================
 // أرقام احتياطية لو البيفوت وقع. الأرقام الحية من Pivot Table 1 عمود F.
@@ -1074,12 +1162,19 @@ const enDate = d => {
 };
 function timeToMinutes(t){
   if(!t) return null;
-  const m = t.match(/(\d+):(\d+):(\d+)\s*(AM|PM)/i);
+  const s = String(t).trim();
+  let m = s.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)$/i);
+  if(m){
+    let h = parseInt(m[1],10), min = parseInt(m[2],10);
+    const ap = m[4].toUpperCase();
+    if(ap==="PM" && h!==12) h += 12;
+    if(ap==="AM" && h===12) h = 0;
+    return h*60+min;
+  }
+  m = s.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
   if(!m) return null;
-  let h = parseInt(m[1],10), min = parseInt(m[2],10);
-  const ap = m[4].toUpperCase();
-  if(ap==="PM" && h!==12) h += 12;
-  if(ap==="AM" && h===12) h = 0;
+  const h = parseInt(m[1],10), min = parseInt(m[2],10);
+  if(h>23 || min>59) return null;
   return h*60+min;
 }
 function hourLabel(h){
@@ -1178,7 +1273,7 @@ function normalizeRow(row){
     qty: parseInt(qtyRaw,10) || 0,
     status: (pick(row,["Status"])||"").toString().trim(),
     arrival: arrivalRaw || null,
-    emp: (pick(row,["Emp Name"])||"").toString().trim(),
+    emp: normalizeEmpCell(pick(row,["Emp Name"])||""),
     cars: parseInt(carsRaw,10) || 0,
     product: productRaw ? (parseInt(productRaw,10) || null) : null,
   };
@@ -1394,7 +1489,7 @@ async function loadData(opts){
     if(!window.InboundClient) throw new Error("Inbound client is not loaded");
     const snap = await window.InboundClient.load();
     if(!snap.receipts.length) throw new Error("No inbound rows from sheet");
-    RAW_DATA = snap.receipts;
+    RAW_DATA = canonicalizeReceipts(snap.receipts);
     if(snap.capacity && snap.capacity.length) RAW_CAPACITY = snap.capacity;
     lastSnapHash = snapHash(RAW_DATA, RAW_CAPACITY);
     saveSnapCache(snap);
@@ -1408,10 +1503,10 @@ async function loadData(opts){
     if(!RAW_DATA.length){
       const cached = readSnapCache();
       if(cached){
-        RAW_DATA = cached.receipts;
+        RAW_DATA = canonicalizeReceipts(cached.receipts);
         RAW_CAPACITY = cached.capacity || [];
       }else{
-        RAW_DATA = FALLBACK_DATA;
+        RAW_DATA = canonicalizeReceipts(FALLBACK_DATA);
       }
     }
     setLiveBadge("cached");
@@ -1477,7 +1572,7 @@ function datesInWeek(){
 
 function populateFilterOptions(){
   const facilities = unique(RAW_DATA,"facility");
-  const emps = unique(RAW_DATA,"emp");
+  const emps = uniqueEmps(RAW_DATA);
   const statuses = unique(RAW_DATA,"status");
   const dates = sheetDates().slice().reverse();
 
@@ -1594,8 +1689,14 @@ function applyClickFilter(kind, value){
   if(!value) return;
   if(kind==="facility" && el("fFacility")) el("fFacility").value = value;
   if(kind==="emp"){
-    if(el("fEmp")) el("fEmp").value = value;
-    empFilter = empFilter === value ? "" : value;
+    const name = normalizeEmpName(value) || value;
+    if(empFilter === name){
+      if(el("fEmp")) el("fEmp").value = "";
+      empFilter = "";
+    }else{
+      if(el("fEmp")) el("fEmp").value = name;
+      empFilter = name;
+    }
   }
   if(kind==="status" && el("fStatus")) el("fStatus").value = value;
   if(kind==="vendor"){
@@ -1641,7 +1742,11 @@ function nonDateMatch(r){
   const status = (el("fStatus") && el("fStatus").value) || "";
   const search = ((el("fSearch") && el("fSearch").value) || "").trim().toLowerCase();
   if(facility && r.facility!==facility) return false;
-  if((emp || empFilter) && r.emp!==(emp || empFilter)) return false;
+  const selectedEmp = emp || empFilter;
+  if(selectedEmp){
+    const names = empNamesFromCell(r.emp);
+    if(!names.includes(selectedEmp) && r.emp!==selectedEmp) return false;
+  }
   if(status && r.status!==status) return false;
   if(vendorFilter && r.vendor!==vendorFilter) return false;
   if(search){
@@ -1661,7 +1766,11 @@ function onFiltersChanged(){
 }
 
 function initFilterEvents(){
-  ["fFacility","fEmp","fStatus","fDateFrom","fDateTo"].forEach(id=>on(id, "change", onFiltersChanged));
+  ["fFacility","fStatus","fDateFrom","fDateTo"].forEach(id=>on(id, "change", onFiltersChanged));
+  on("fEmp", "change", ()=>{
+    empFilter = (el("fEmp") && el("fEmp").value) || "";
+    onFiltersChanged();
+  });
   on("fSearch", "input", render);
   on("tableSearch", "input", ()=>{ tablePage = 0; renderTableOnly(); });
   on("btnReset", "click", ()=>{
@@ -1778,6 +1887,40 @@ function arrivalAgo(dateIso, arrival){
   if(diff < 1) return t("justNow");
   if(diff < 60) return t("minsAgo",{n:diff});
   return t("hoursAgo",{n:Math.floor(diff/60)});
+}
+
+function arrivalDateTime(dateIso, arrival){
+  const mins = timeToMinutes(arrival);
+  if(mins==null || !dateIso) return null;
+  const p = dateIso.split("-").map(Number);
+  if(p.length<3) return null;
+  return new Date(p[0], p[1]-1, p[2], Math.floor(mins/60), mins%60, 0, 0);
+}
+function waitMinutes(dateIso, arrival){
+  const dt = arrivalDateTime(dateIso, arrival);
+  if(!dt) return null;
+  return Math.floor((Date.now() - dt.getTime()) / 60000);
+}
+function waitLabel(mins){
+  if(mins==null) return "—";
+  if(mins < 60) return t("lateWait",{n:mins});
+  return t("lateWaitLong",{h:Math.floor(mins/60), m:mins%60});
+}
+function yardLane(r){
+  if(isReceivedRow(r)) return "received";
+  const s = (r.status||"").trim().toLowerCase();
+  if(s==="dock") return "dock";
+  if(/^arrive/.test(s)) return "arrive";
+  return "";
+}
+function isYardOpen(r){
+  if(isReceivedRow(r)) return false;
+  return /^(arrive|dock)/i.test((r.status||"").trim());
+}
+function isLateYard(r){
+  if(!isYardOpen(r)) return false;
+  const wait = waitMinutes(r.date, r.arrival);
+  return wait != null && wait >= 60;
 }
 
 function shiftDate(){
@@ -1963,7 +2106,7 @@ function renderCharts(data){
     lastChartKey = "";
   }
   const key = chartViewKey(data);
-  if(key === lastChartKey && charts.facilityQty && charts.facilitySku && charts.topVendors && (!el("chartEmpPerf") || charts.empPerf)) return;
+  if(key === lastChartKey && charts.facilityQty && charts.facilitySku && charts.topVendors && (!el("chartEmpPerf") || charts.empPerf) && (!el("chartHourly") || charts.hourly)) return;
   lastChartKey = key;
   if(typeof Chart === "undefined") return;
   applyChartDefaults();
@@ -1976,7 +2119,8 @@ function renderCharts(data){
   const chartFacilitySku = can("chartFacilitySku");
   const chartTopVendors = can("chartTopVendors");
   const empCanvas = can("chartEmpPerf");
-  if(!chartFacilityQty && !chartFacilitySku && !chartTopVendors && !empCanvas) return;
+  const hourlyCanvas = can("chartHourly");
+  if(!chartFacilityQty && !chartFacilitySku && !chartTopVendors && !empCanvas && !hourlyCanvas) return;
 
   const byFacilityQty = {};
   const byFacilitySku = {};
@@ -1995,15 +2139,14 @@ function renderCharts(data){
         byVendor[vendor].sku += r.product||0;
       }
     }
-    const name = (r.emp||"").trim();
-    if(name){
+    empNamesFromCell(r.emp).forEach(name=>{
       if(!byEmp[name]) byEmp[name] = {qty:0, sku:0, asns:new Set()};
       byEmp[name].qty += qty;
       if(isReceivedRow(r)){
         byEmp[name].asns.add(asnKey(r));
         byEmp[name].sku += r.product||0;
       }
-    }
+    });
   });
   const facLabels = [...new Set([...Object.keys(byFacilityQty), ...Object.keys(byFacilitySku)])].sort();
   const topVendorsQty = Object.entries(byVendor)
@@ -2182,6 +2325,54 @@ function renderCharts(data){
       }
     }
   });
+
+  if(hourlyCanvas){
+    const buckets = {};
+    data.forEach(r=>{
+      const mins = timeToMinutes(r.arrival);
+      if(mins==null) return;
+      const lane = yardLane(r);
+      if(!lane) return;
+      const h = Math.floor(mins/60);
+      if(!buckets[h]) buckets[h] = {arrive:0, dock:0, received:0};
+      buckets[h][lane]++;
+    });
+    const hours = Object.keys(buckets).map(Number).sort((a,b)=>a-b);
+    const fromH = hours.length ? hours[0] : 8;
+    const toH = hours.length ? hours[hours.length-1] : 8;
+    const labels = [];
+    const arrive = [], dock = [], received = [];
+    for(let h=fromH; h<=toH; h++){
+      labels.push(hourLabel(h));
+      const b = buckets[h] || {arrive:0, dock:0, received:0};
+      arrive.push(b.arrive);
+      dock.push(b.dock);
+      received.push(b.received);
+    }
+    upsertChart("hourly", hourlyCanvas, {
+      type:"bar",
+      data:{
+        labels,
+        datasets:[
+          {label:t("hourlyArrive"), data:arrive, backgroundColor:"#0abde3", borderRadius:4, maxBarThickness:22, stack:"asn"},
+          {label:t("hourlyDock"), data:dock, backgroundColor:"#f5e023", borderRadius:4, maxBarThickness:22, stack:"asn"},
+          {label:t("hourlyReceived"), data:received, backgroundColor:"#1fb08f", borderRadius:4, maxBarThickness:22, stack:"asn"}
+        ]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        animation:{duration:450},
+        plugins:{
+          legend:{display:true, position:"bottom", labels:{boxWidth:10, padding:14, font:{size:11}}},
+          tooltip:{callbacks:{label:(c)=>`${c.dataset.label}: ${fmt(c.parsed.y)}`}}
+        },
+        scales:{
+          x:{ stacked:true, grid:{display:false}, ticks:{font:{size:11}} },
+          y:{ stacked:true, grid:{color:tc.grid}, ticks:{callback:v=>fmt(v), precision:0}, title:{display:true, text:t("asnCount"), font:{size:11}} }
+        }
+      }
+    });
+  }
 }
 
 // ===================== CAPACITY PANEL =====================
@@ -2295,6 +2486,36 @@ function renderYardTables(data){
   const arrive = (data||[]).filter(r=>/^arrive/i.test((r.status||"").trim()));
   fillYardTable("dockBody", "dockCount", dock, "dockEmpty");
   fillYardTable("arriveBody", "arriveCount", arrive, "arriveEmpty");
+}
+
+function renderLateList(data){
+  const body = el("lateBody");
+  const count = el("lateCount");
+  if(!body) return;
+  const rows = (data||[]).filter(isLateYard).sort((a,b)=>{
+    return (waitMinutes(b.date, b.arrival)??-1) - (waitMinutes(a.date, a.arrival)??-1);
+  });
+  if(count) count.textContent = t("lateCount",{n:fmt(rows.length)});
+  if(!rows.length){
+    body.innerHTML = `<div class="yard-empty">${t("lateEmpty")}</div>`;
+    return;
+  }
+  body.innerHTML = rows.map(r=>{
+    const wait = waitMinutes(r.date, r.arrival);
+    return `
+      <div class="yard-row late">
+        <div class="yard-vendor">${escapeHtml(r.vendor || "—")}</div>
+        <div class="yard-meta">
+          <span class="pill ${statusPill(r.status)}">${escapeHtml(r.status || "—")}</span>
+          <span class="yard-wait">${escapeHtml(waitLabel(wait))}</span>
+          <span class="mono">${escapeHtml(r.asn || "—")}</span>
+          <span class="facility-tag">${escapeHtml(r.facility || "—")}</span>
+          <span>${escapeHtml(r.arrival || "—")}</span>
+          <span>${escapeHtml(r.emp || "—")}</span>
+        </div>
+      </div>
+    `;
+  }).join("");
 }
 
 function renderTable(data){
@@ -2617,7 +2838,9 @@ function render(){
     syncDateChips();
     renderKPIs(data);
     renderCapacity(data);
+    renderAlerts(data);
     renderCharts(data);
+    renderLateList(data);
     renderYardTables(data);
     renderTable(data);
   }catch(err){
