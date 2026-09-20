@@ -3149,7 +3149,8 @@ function buildDailyReportModel(day, data){
     const cap = capMap[fac] || 0;
     totalCap += cap;
     return {
-      name: facilityReportName(fac),
+      code: fac,
+      spec: FACILITY_SPECIALTY[fac] || "",
       asn: reportPair(v.got.size, v.asn.size),
       qty: reportPair(v.qty, v.ro),
       cap: reportPair(v.qty, cap),
@@ -3183,173 +3184,218 @@ function buildDailyReportModel(day, data){
     topPlan: reportTopVendors(vendorStats, "planned", 5)
   };
 }
-function reportSectionHead(doc, x, y, w, title){
-  reportFill(doc, x, y, w, 7, "#141414");
-  reportText(doc, title, x + 2.4, y + 4.8, {size: 10, bold: true, color: "#ffffff"});
+function reportCard(doc, x, y, w, h, hex, opt){
+  opt = opt || {};
+  const r = opt.radius == null ? 2.6 : opt.radius;
+  doc.setFillColor.apply(doc, reportRgb(hex));
+  doc.roundedRect(x, y, w, h, r, r, "F");
 }
-function reportDrawCols(doc, x, y, cols, values, colors, sizes, bolds){
-  let cx = x;
+function reportRoundBar(doc, x, y, w, h, pct, trackHex, fillHex){
+  const p = Math.max(0, Math.min(100, Number(pct)||0));
+  doc.setFillColor.apply(doc, reportRgb(trackHex));
+  doc.roundedRect(x, y, w, h, h / 2, h / 2, "F");
+  if(p > 0){
+    const fw = Math.max(h, w * p / 100);
+    doc.setFillColor.apply(doc, reportRgb(fillHex));
+    doc.roundedRect(x, y, Math.min(fw, w), h, h / 2, h / 2, "F");
+  }
+}
+function reportBadge(doc, cx, cy, r, rank){
+  const palette = { 1: ["#f5e023", "#141414"], 2: ["#e3e5ea", "#141414"], 3: ["#f0dcc0", "#141414"] };
+  const pair = palette[rank] || ["#eef0f3", "#8a8f98"];
+  doc.setFillColor.apply(doc, reportRgb(pair[0]));
+  doc.circle(cx, cy, r, "F");
+  reportText(doc, String(rank), cx, cy + r * 0.36, {size: 7.4, bold: true, color: pair[1], align: "center"});
+}
+function reportSectionHead(doc, x, y, w, title){
+  reportFill(doc, x, y, w, 8, "#141414");
+  reportFill(doc, x, y, 3, 8, "#f5e023");
+  reportText(doc, title.toUpperCase(), x + 6.5, y + 5.4, {size: 9.5, bold: true, color: "#ffffff"});
+}
+function reportColHeadRow(doc, x0, y, cols, labels){
+  const w = cols.reduce((s,c)=>s+c.w, 0);
+  let cx = x0;
   cols.forEach((col, i)=>{
-    const tx = col.align === "right" ? cx + col.w - 1.6 : cx + (col.pad == null ? 1.6 : col.pad);
-    reportText(doc, values[i], tx, y, {
-      size: sizes[i],
-      bold: !!bolds[i],
-      color: colors[i],
-      align: col.align || "left",
-      maxWidth: col.w - 3.2
-    });
+    const pad = col.padLeft != null ? col.padLeft : 1.6;
+    const tx = col.align === "right" ? cx + col.w - 1.6 : cx + pad;
+    reportText(doc, labels[i], tx, y + 4.6, {size: 7.1, bold: true, color: "#8a8f98", align: col.align || "left"});
     cx += col.w;
   });
+  doc.setDrawColor.apply(doc, reportRgb("#141414"));
+  doc.setLineWidth(0.35);
+  doc.line(x0, y + 6.4, x0 + w, y + 6.4);
+}
+function drawFacilityRow(doc, x0, y, rh, cols, row, zebra){
+  const w = cols.reduce((s,c)=>s+c.w, 0);
+  reportFill(doc, x0, y, w, rh, row.total ? "#fff6b0" : (zebra ? "#fbfbfc" : "#ffffff"));
+  const midY = y + rh / 2 + 1.5;
+  if(row.total){
+    reportText(doc, "TOTAL", x0 + 1.6, midY, {size: 8.4, bold: true, color: "#141414"});
+  }else{
+    reportText(doc, row.code, x0 + 1.6, midY, {size: 8.4, bold: true, color: "#141414"});
+    const codeW = doc.getTextWidth(row.code) + 2.4;
+    if(row.spec){
+      reportText(doc, row.spec, x0 + 1.6 + codeW, midY, {size: 7.8, color: "#8a8f98"});
+    }
+  }
+  let cx = x0 + cols[0].w;
+  const vals = [row.asn, row.qty, row.cap];
+  for(let i = 0; i < 3; i++){
+    reportText(doc, vals[i], cx + cols[i + 1].w - 1.6, midY, {size: 8.4, color: "#141414", align: "right", maxWidth: cols[i + 1].w - 3.2});
+    cx += cols[i + 1].w;
+  }
+  const pctColW = cols[4].w, barW = 15;
+  const barColor = row.total ? "#141414" : (row.pct >= 100 ? "#db3332" : row.pct > 0 ? "#18795f" : "#c7c9cf");
+  const barX = cx + pctColW - barW - 12;
+  reportRoundBar(doc, barX, y + rh / 2 - 1.1, barW, 2.2, row.pct, "#eaecef", barColor);
+  reportText(doc, row.pct + "%", cx + pctColW - 1.6, midY, {size: 8.4, bold: true, color: barColor, align: "right"});
+  doc.setDrawColor.apply(doc, reportRgb("#eeeeee"));
+  doc.setLineWidth(0.15);
+  doc.line(x0, y + rh, x0 + w, y + rh);
+}
+function drawVendorRow(doc, x0, y, rh, rank, cells, cols, zebra){
+  const w = cols.reduce((s,c)=>s+c.w, 0);
+  reportFill(doc, x0, y, w, rh, zebra ? "#fbfbfc" : "#ffffff");
+  let cx = x0;
+  cells.forEach((cell, i)=>{
+    const col = cols[i];
+    if(col.badge){
+      reportBadge(doc, cx + 4.4, y + rh / 2, 3, rank);
+      reportText(doc, cell, cx + 10.4, y + rh / 2 + 1.5, {size: 8.3, color: "#141414", maxWidth: col.w - 12});
+    }else{
+      const tx = col.align === "right" ? cx + col.w - 1.6 : cx + 1.6;
+      reportText(doc, cell, tx, y + rh / 2 + 1.5, {size: 8.3, bold: !!col.bold, color: col.color || "#141414", align: col.align || "left", maxWidth: col.w - 3.2});
+    }
+    cx += col.w;
+  });
+  doc.setDrawColor.apply(doc, reportRgb("#eeeeee"));
+  doc.setLineWidth(0.15);
+  doc.line(x0, y + rh, x0 + w, y + rh);
+}
+function drawEmptyVendorRow(doc, x0, y, rh, w){
+  reportFill(doc, x0, y, w, rh, "#ffffff");
+  reportText(doc, "No vendors", x0 + 10.4, y + rh / 2 + 1.5, {size: 8.3, color: "#a7abb3"});
+  doc.setDrawColor.apply(doc, reportRgb("#eeeeee"));
+  doc.setLineWidth(0.15);
+  doc.line(x0, y + rh, x0 + w, y + rh);
 }
 function drawDailyReportPdf(doc, model, logo){
-  const W = 210, H = 297, x0 = 10, contentW = 190;
-  reportFill(doc, 0, 0, W, H, "#ffffff");
-  reportFill(doc, 0, 0, W, 28, "#f5e023");
-  if(logo && String(logo).slice(0,5) === "data:"){
-    try{ doc.addImage(logo, logo.indexOf("image/jpeg") >= 0 ? "JPEG" : "PNG", 10, 6, 16, 16); }catch(e){}
-  }
-  reportText(doc, "Inbound Team", 30, 9.2, {size: 10, bold: true});
-  reportText(doc, "Daily Receiving Report", 30, 16.4, {size: 16, bold: true});
-  reportText(doc, model.label, 30, 22.8, {size: 10, bold: true, color: "#3a3a3a"});
+  const W = 210, H = 297, x0 = 14, contentW = 182;
+  const ink = "#141414", yellow = "#f5e023", muted = "#6b6f76";
 
-  const cards = [
-    {bg:"#fff6b0", title:"ASNs today", a:"Received", av:model.kpis.asnGot, b:"Planned", bv:model.kpis.asnPlan, foot: model.kpis.asnPct + "% of planned ASNs are received", titleC:"#141414", labC:"#555555", valC:"#141414", footC:"#141414"},
-    {bg:"#fde8e8", title:"Quantity (units)", a:"Received", av:model.kpis.qtyGot, b:"Planned", bv:model.kpis.qtyPlan, foot: model.kpis.qtyPct + "% of planned units are received", titleC:"#141414", labC:"#555555", valC:"#141414", footC:"#141414"},
-    {bg:"#141414", title:"Vendors", a:"Received", av:model.kpis.venGot, b:"Planned", bv:model.kpis.venPlan, foot: model.kpis.venPct + "% of planned vendors are received", titleC:"#ffffff", labC:"#f5e023", valC:"#ffffff", footC:"#f5e023"},
-    {bg:"#e4f7f2", title:"Warehouse capacity", a:"Used today", av:model.kpis.qtyGot, b:"Daily limit", bv:model.kpis.cap, foot: model.kpis.capPct + "% of today's warehouse capacity used", titleC:"#141414", labC:"#555555", valC:"#141414", footC:"#18795f"}
+  reportFill(doc, 0, 0, W, H, "#ffffff");
+
+  const headerH = 32;
+  reportFill(doc, 0, 0, W, headerH, yellow);
+  reportFill(doc, 0, headerH - 1.6, W, 1.6, ink);
+  if(logo && String(logo).slice(0, 5) === "data:"){
+    try{ doc.addImage(logo, logo.indexOf("image/jpeg") >= 0 ? "JPEG" : "PNG", x0, 8, 16, 16); }catch(e){}
+  }
+  reportText(doc, "INBOUND TEAM", x0 + 20, 12, {size: 8.5, bold: true, color: ink});
+  reportText(doc, "Daily Receiving Report", x0 + 20, 20.6, {size: 18, bold: true, color: ink});
+  reportText(doc, model.label, x0 + 20, 26.8, {size: 10, bold: true, color: "#3a3a3a"});
+
+  const now = new Date();
+  const gen = now.toLocaleDateString("en-GB", {day: "numeric", month: "short", year: "numeric"}) +
+    "  ·  " + now.toLocaleTimeString("en-GB", {hour: "2-digit", minute: "2-digit"});
+  reportText(doc, "GENERATED", x0 + contentW, 11.5, {size: 7, bold: true, color: "#6b6329", align: "right"});
+  reportText(doc, gen, x0 + contentW, 16.6, {size: 9.5, bold: true, color: ink, align: "right"});
+
+  let y = headerH + 8;
+  const cardGap = 5, cardH = 38;
+  const cardW = (contentW - cardGap * 3) / 4;
+  const cardDefs = [
+    {bg: "#fff6b0", title: "ASNs Today", got: model.kpis.asnGot, plan: model.kpis.asnPlan, pct: model.kpis.asnPct, dark: false, capacity: false},
+    {bg: "#fde8e8", title: "Quantity (Units)", got: model.kpis.qtyGot, plan: model.kpis.qtyPlan, pct: model.kpis.qtyPct, dark: false, capacity: false},
+    {bg: ink, title: "Vendors", got: model.kpis.venGot, plan: model.kpis.venPlan, pct: model.kpis.venPct, dark: true, capacity: false},
+    {bg: "#e4f7f2", title: "Warehouse Capacity", got: model.kpis.qtyGot, plan: model.kpis.cap, pct: model.kpis.capPct, dark: false, capacity: true}
   ];
-  const gap = 3, cardW = (contentW - gap * 3) / 4, cardY = 32, cardH = 40;
-  cards.forEach((c, i)=>{
-    const x = x0 + i * (cardW + gap);
-    reportFill(doc, x, cardY, cardW, cardH, c.bg);
-    reportText(doc, c.title, x + 3, cardY + 6.2, {size: 9, bold: true, color: c.titleC, maxWidth: cardW - 6});
-    reportText(doc, c.a, x + 3, cardY + 16, {size: 8, bold: true, color: c.labC});
-    reportText(doc, reportN(c.av), x + cardW - 3, cardY + 16.2, {size: 12, bold: true, color: c.valC, align: "right"});
-    reportText(doc, c.b, x + 3, cardY + 24.2, {size: 8, bold: true, color: c.labC});
-    reportText(doc, reportN(c.bv), x + cardW - 3, cardY + 24.4, {size: 12, bold: true, color: c.valC, align: "right"});
-    reportText(doc, c.foot, x + 3, cardY + 32.2, {size: 7, bold: true, color: c.footC, maxWidth: cardW - 6, wrap: true});
+  cardDefs.forEach((c, i)=>{
+    const x = x0 + i * (cardW + cardGap);
+    const titleC = c.dark ? yellow : ink;
+    const numC = c.dark ? "#ffffff" : ink;
+    const mutedC = c.dark ? "#c9c9a0" : muted;
+    const trackC = c.dark ? "#333333" : "#ffffff";
+    const fillC = c.dark ? yellow : ink;
+    reportCard(doc, x, y, cardW, cardH, c.bg, {radius: 2.6});
+    reportText(doc, c.title.toUpperCase(), x + 4, y + 7.4, {size: 7.8, bold: true, color: titleC, maxWidth: cardW - 8});
+    reportText(doc, reportN(c.got), x + 4, y + 19, {size: 17, bold: true, color: numC});
+    reportText(doc, "of " + reportN(c.plan) + (c.capacity ? " limit" : " planned"), x + 4, y + 24.4, {size: 7.4, bold: true, color: mutedC, maxWidth: cardW - 8});
+    reportRoundBar(doc, x + 4, y + 28.2, cardW - 8, 2.2, c.pct, trackC, fillC);
+    reportText(doc, c.pct + "% " + (c.capacity ? "used" : "received"), x + cardW - 4, y + 34.8, {size: 8, bold: true, color: numC, align: "right"});
   });
 
-  let y = 76;
+  y += cardH + 9;
+
   reportSectionHead(doc, x0, y, contentW, "Facilities");
+  y += 8;
+  const facCols = [{w: 46, align: "left"}, {w: 34, align: "right"}, {w: 34, align: "right"}, {w: 34, align: "right"}, {w: 34, align: "right"}];
+  reportColHeadRow(doc, x0, y, facCols, ["FACILITY", "ASN RECEIVED / PLANNED", "QTY / TOTAL RO", "QTY / CAPACITY", "% USED"]);
   y += 7;
-  const facCols = [
-    {w: 52, align: "left"},
-    {w: 40, align: "right"},
-    {w: 40, align: "right"},
-    {w: 40, align: "right"},
-    {w: 18, align: "right"}
-  ];
-  reportFill(doc, x0, y, contentW, 6.2, "#f7f7f8");
-  reportDrawCols(doc, x0, y + 4.2, facCols,
-    ["Facility", "ASN received / planned", "Qty / Total RO", "Qty / Capacity", "%"],
-    ["#555555","#555555","#555555","#555555","#555555"],
-    [7.5,7.5,7.5,7.5,7.5],
-    [true,true,true,true,true]
-  );
-  y += 6.2;
   const facRows = model.facs.concat([{
-    name: "Total",
+    total: true,
     asn: reportPair(model.kpis.asnGot, model.kpis.asnPlan),
     qty: reportPair(model.kpis.qtyGot, model.kpis.qtyPlan),
     cap: reportPair(model.kpis.qtyGot, model.kpis.cap),
-    pct: model.kpis.capPct,
-    total: true
+    pct: model.kpis.capPct
   }]);
-  facRows.forEach(r=>{
-    const rh = 6.4;
-    reportFill(doc, x0, y, contentW, rh, r.total ? "#fff6b0" : "#ffffff");
-    const pctColor = r.pct >= 100 ? "#db3332" : r.pct > 0 ? "#18795f" : "#141414";
-    reportDrawCols(doc, x0, y + 4.3, facCols,
-      [r.name, r.asn, r.qty, r.cap, r.pct + "%"],
-      ["#141414","#141414","#141414","#141414", pctColor],
-      [8,8,8,8,8],
-      [true, !!r.total, !!r.total, !!r.total, true]
-    );
-    doc.setDrawColor(238,238,238);
-    doc.setLineWidth(0.15);
-    doc.line(x0, y + rh, x0 + contentW, y + rh);
-    y += rh;
+  facRows.forEach((r, i)=>{
+    drawFacilityRow(doc, x0, y, 7, facCols, r, i % 2 === 1);
+    y += 7;
   });
 
-  y += 5;
+  y += 10;
   const half = (contentW - 4) / 2;
   const startY = y;
-  function drawVendorSide(x, title, rows, valueKey, valueLabel){
+  function drawVendorTable(x, title, rows, valueKey, valueLabel){
     reportSectionHead(doc, x, startY, half, title);
-    let yy = startY + 7;
-    reportFill(doc, x, yy, half, 6, "#f7f7f8");
-    reportText(doc, "#", x + 2, yy + 4.1, {size: 7.5, bold: true, color: "#555555"});
-    reportText(doc, "Vendor", x + 8, yy + 4.1, {size: 7.5, bold: true, color: "#555555"});
-    reportText(doc, valueLabel, x + half - 2, yy + 4.1, {size: 7.5, bold: true, color: "#555555", align: "right"});
-    yy += 6;
+    let yy = startY + 8;
+    const cols = [{w: half - 34, badge: true, padLeft: 10.4}, {w: 34, align: "right"}];
+    reportColHeadRow(doc, x, yy, cols, ["VENDOR", valueLabel.toUpperCase()]);
+    yy += 7;
     const list = rows || [];
     for(let i = 0; i < 5; i++){
       const v = list[i];
-      const rh = 6.2;
       if(v){
-        reportText(doc, String(i + 1), x + 2, yy + 4.2, {size: 8, bold: true, color: "#888888"});
-        reportText(doc, v.name, x + 8, yy + 4.2, {size: 8, color: "#141414", maxWidth: half - 30});
-        reportText(doc, reportN(v[valueKey]), x + half - 2, yy + 4.2, {size: 8, bold: true, align: "right"});
-      }else if(i === 0 && !list.length){
-        reportText(doc, "No vendors", x + 8, yy + 4.2, {size: 8, color: "#888888"});
+        drawVendorRow(doc, x, yy, 7, i + 1, [v.name, reportN(v[valueKey])], cols, i % 2 === 1);
+      }else{
+        drawEmptyVendorRow(doc, x, yy, 7, half);
       }
-      doc.setDrawColor(238,238,238);
-      doc.setLineWidth(0.15);
-      doc.line(x, yy + rh, x + half, yy + rh);
-      yy += rh;
+      yy += 7;
     }
     return yy;
   }
-  const yLeft = drawVendorSide(x0, "Top 5 vendors by quantity", model.topQty, "qty", "Quantity");
-  const yRight = drawVendorSide(x0 + half + 4, "Top 5 vendors by SKU", model.topSku, "sku", "SKU");
-  y = Math.max(yLeft, yRight) + 4;
+  const yLeft = drawVendorTable(x0, "Top 5 Vendors by Quantity", model.topQty, "qty", "Quantity");
+  const yRight = drawVendorTable(x0 + half + 4, "Top 5 Vendors by SKU", model.topSku, "sku", "SKU");
+  y = Math.max(yLeft, yRight) + 10;
 
-  reportSectionHead(doc, x0, y, contentW, "Top 5 vendors by planned quantity");
+  reportSectionHead(doc, x0, y, contentW, "Top 5 Vendors by Planned Quantity");
+  y += 8;
+  const pcols = [{w: contentW - 30 - 30 - 14, badge: true, padLeft: 10.4}, {w: 30, align: "right"}, {w: 30, align: "right"}, {w: 14, align: "right"}];
+  reportColHeadRow(doc, x0, y, pcols, ["VENDOR", "PLANNED", "RECEIVED", "%"]);
   y += 7;
-  const pcols = [
-    {w: 8, align: "left", pad: 2},
-    {w: 86, align: "left"},
-    {w: 32, align: "right"},
-    {w: 32, align: "right"},
-    {w: 32, align: "right"}
-  ];
-  reportFill(doc, x0, y, contentW, 6, "#f7f7f8");
-  reportDrawCols(doc, x0, y + 4.1, pcols,
-    ["#", "Vendor", "Planned", "Received", "%"],
-    ["#555555","#555555","#555555","#555555","#555555"],
-    [7.5,7.5,7.5,7.5,7.5],
-    [true,true,true,true,true]
-  );
-  y += 6;
   const plans = model.topPlan || [];
   for(let i = 0; i < 5; i++){
     const v = plans[i];
-    const rh = 6.2;
     if(v){
       const pct = reportPct(v.qty, v.planned);
       const pc = pct >= 100 ? "#18795f" : pct === 0 ? "#db3332" : "#141414";
-      reportDrawCols(doc, x0, y + 4.2, pcols,
-        [String(i + 1), v.name, reportN(v.planned), reportN(v.qty), pct + "%"],
-        ["#888888","#141414","#141414","#141414", pc],
-        [8,8,8,8,8],
-        [true,false,false,false,true]
-      );
-    }else if(i === 0 && !plans.length){
-      reportText(doc, "No vendors", x0 + 10, y + 4.2, {size: 8, color: "#888888"});
+      const cols = [pcols[0], pcols[1], pcols[2], Object.assign({}, pcols[3], {bold: true, color: pc})];
+      drawVendorRow(doc, x0, y, 7, i + 1, [v.name, reportN(v.planned), reportN(v.qty), pct + "%"], cols, i % 2 === 1);
+    }else{
+      drawEmptyVendorRow(doc, x0, y, 7, contentW);
     }
-    doc.setDrawColor(238,238,238);
-    doc.setLineWidth(0.15);
-    doc.line(x0, y + rh, x0 + contentW, y + rh);
-    y += rh;
+    y += 7;
   }
 
-  const fh = 16, fy = H - fh;
-  reportFill(doc, 0, fy, W, fh, "#141414");
-  reportText(doc, "Inbound Daily Report  ·  " + model.label, 10, fy + 6, {size: 8, bold: true, color: "#ffffff"});
-  reportFill(doc, W - 42, fy + 2.6, 32, 5.2, "#f5e023");
-  reportText(doc, "noon MINUTES", W - 26, fy + 6.2, {size: 7, bold: true, color: "#141414", align: "center"});
-  reportText(doc, "Designed by Ibrahim Afify", W / 2, fy + 12.4, {size: 9, bold: true, color: "#f5e023", align: "center"});
+  const footH = 18, fy = H - footH;
+  reportFill(doc, 0, fy, W, footH, ink);
+  reportFill(doc, 0, fy, 3, footH, yellow);
+  reportText(doc, "INBOUND DAILY REPORT", x0, fy + 6.4, {size: 8, bold: true, color: "#ffffff"});
+  reportText(doc, model.label, x0, fy + 12, {size: 7.5, color: "#9a9a86"});
+  reportCard(doc, W - x0 - 30, fy + 4.6, 30, 6.2, yellow, {radius: 1.4});
+  reportText(doc, "noon MINUTES", W - x0 - 15, fy + 8.6, {size: 7, bold: true, color: ink, align: "center"});
+  reportText(doc, "Designed by Ibrahim Afify", W / 2, fy + 14.2, {size: 8, bold: true, color: yellow, align: "center"});
 }
 function setReportButtonBusy(busy){
   const btn = document.getElementById("btnDailyReport");
