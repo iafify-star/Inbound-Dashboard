@@ -1057,7 +1057,7 @@ const CAPACITY_DATA = {
   "CAIID06":    7400,
   "CAIID07":    5700,
 };
-const CAPACITY_ORDER = ["CAIID01","CAIID03+04","CAIID05","CAIID06","CAIID07"];
+const CAPACITY_ORDER = ["CAIID01","CAIID02","CAIID03+04","CAIID05","CAIID06","CAIID07"];
 
 // ===================== FALLBACK SNAPSHOT =====================
 // تظهر فقط لو الشيت وقع من أول تحميل. متحدثهاش يومياً — الشيت هو المصدر.
@@ -3038,11 +3038,18 @@ function reportTopVendors(list, key, limit){
     .sort((a,b)=>(b[key]||0)-(a[key]||0) || (b.qty||0)-(a.qty||0) || a.name.localeCompare(b.name))
     .slice(0, limit||5);
 }
+function reportNb(s){
+  return escapeHtml(String(s==null?"":s)).replace(/ /g, "&nbsp;");
+}
+function reportPair(a, b){
+  const nfmt = n => (Number(n)||0).toLocaleString("en-US");
+  return `${nfmt(a)}&nbsp;/&nbsp;${nfmt(b)}`;
+}
 function reportVendorTableRows(list, cellsFn, cols){
-  if(!list.length) return `<tr><td colspan="${cols}">No vendors</td></tr>`;
+  if(!list.length) return `<tr><td colspan="${cols}">${reportNb("No vendors")}</td></tr>`;
   return list.map((v,i)=>`<tr>
       <td class="rank">${i+1}</td>
-      <td>${escapeHtml(v.name)}</td>
+      <td>${reportNb(v.name)}</td>
       ${cellsFn(v)}
     </tr>`).join("");
 }
@@ -3083,10 +3090,10 @@ function buildDailyReportHtml(day, data, logoSrc){
     const pct = reportPct(v.qty, cap);
     const cls = pct>=100 ? "hot" : pct>0 ? "ok" : "";
     return `<tr>
-      <td><span class="code">${escapeHtml(fac)}</span>${FACILITY_SPECIALTY[fac] ? " "+escapeHtml(FACILITY_SPECIALTY[fac]) : ""}</td>
-      <td class="num">${nfmt(v.got.size)} / ${nfmt(v.asn.size)}</td>
-      <td class="num">${nfmt(v.qty)} / ${nfmt(v.ro)}</td>
-      <td class="num">${nfmt(v.qty)} / ${nfmt(cap)}</td>
+      <td><span class="code">${reportNb(fac)}</span>${FACILITY_SPECIALTY[fac] ? "&nbsp;&nbsp;"+reportNb(FACILITY_SPECIALTY[fac]) : ""}</td>
+      <td class="num">${reportPair(v.got.size, v.asn.size)}</td>
+      <td class="num">${reportPair(v.qty, v.ro)}</td>
+      <td class="num">${reportPair(v.qty, cap)}</td>
       <td class="num ${cls}">${pct}%</td>
     </tr>`;
   }).join("");
@@ -3115,41 +3122,37 @@ function buildDailyReportHtml(day, data, logoSrc){
 <style>
   @page { size: A4; margin: 0; }
   html, body { margin: 0; padding: 0; background: #ffffff; color: #141414; color-scheme: only light; }
-  body {
-    width: 794px; height: 1123px; overflow: hidden;
-    font-family: Arial, Helvetica, sans-serif;
-    font-size: 12px; line-height: 1.35;
-  }
-  .page { width: 794px; height: 1123px; background: #ffffff; overflow: hidden; }
-  table.layout { width: 100%; border-collapse: collapse; }
-  table.layout > tbody > tr > td { padding: 0; vertical-align: top; }
-  .hero { width: 100%; background: #f5e023; }
-  .hero td { background: #f5e023; padding: 22px 36px; vertical-align: middle; }
-  .hero img { height: 48px; width: auto; background: #f5e023; display: block; }
-  .hero-text { text-align: right; color: #141414; }
+  body { width: 794px; height: 1123px; overflow: hidden; font-family: Arial, Helvetica, sans-serif; }
+  table.sheet { width: 794px; height: 1123px; border-collapse: collapse; background: #ffffff; table-layout: fixed; }
+  table.sheet > tbody > tr > td { padding: 0; }
+  .hero { background: #f5e023; }
+  .hero-inner { width: 100%; border-collapse: collapse; }
+  .hero-inner td { background: #f5e023; padding: 20px 32px; vertical-align: middle; }
+  .hero img { height: 46px; width: auto; background: #f5e023; display: block; }
+  .hero-text { color: #141414; }
   .hero-text .team { font-size: 12px; font-weight: 800; }
-  .hero-text h1 { margin: 4px 0 2px; font-size: 22px; font-weight: 800; }
+  .hero-text h1 { margin: 3px 0 2px; font-size: 22px; font-weight: 800; }
   .hero-text .when { font-size: 13px; font-weight: 700; color: #3a3a3a; }
-  .body { padding: 18px 36px 12px; background: #ffffff; }
-  table.kpis { width: 100%; border-collapse: separate; border-spacing: 8px 0; margin: 0 -8px; }
-  table.kpis > tbody > tr > td { width: 25%; vertical-align: top; padding: 10px 11px; border-radius: 8px; }
-  .kpi .l { font-size: 12px; font-weight: 800; margin-bottom: 8px; }
+  .main { padding: 16px 32px 10px; background: #ffffff; vertical-align: top; }
+  table.kpis { width: 100%; border-collapse: collapse; }
+  table.kpis > tbody > tr > td { width: 25%; vertical-align: top; padding: 0 4px; }
+  table.kpis > tbody > tr > td:first-child { padding-left: 0; }
+  table.kpis > tbody > tr > td:last-child { padding-right: 0; }
+  .card { padding: 10px 11px; }
+  .card .l { font-size: 12px; font-weight: 800; padding-bottom: 8px; }
   table.kv { width: 100%; border-collapse: collapse; }
-  table.kv td { padding: 2px 0; font-size: 11px; font-weight: 700; color: #555555; border: 0; }
+  table.kv td { padding: 3px 0; font-size: 11px; font-weight: 700; color: #555555; }
   table.kv td.val { text-align: right; font-size: 16px; font-weight: 800; color: #141414; }
-  .kpi .s { font-size: 10px; font-weight: 700; margin-top: 8px; }
+  .card .s { font-size: 10px; font-weight: 700; padding-top: 8px; }
   .yellow { background: #fff6b0; color: #141414; }
-  .red { background: #fde8e8; color: #141414; }
-  .black { background: #141414; color: #ffffff; }
-  .black table.kv td { color: #f5e023; }
-  .black table.kv td.val { color: #ffffff; }
-  .black .s { color: #f5e023; }
-  .green { background: #e4f7f2; color: #141414; }
-  .green .s { color: #18795f; }
-  h2 {
-    margin: 14px 0 6px; font-size: 12px; font-weight: 800;
-    background: #141414; color: #ffffff; padding: 7px 10px;
-  }
+  .rose { background: #fde8e8; color: #141414; }
+  .ink { background: #141414; color: #ffffff; }
+  .ink table.kv td { color: #f5e023; }
+  .ink table.kv td.val { color: #ffffff; }
+  .ink .s { color: #f5e023; }
+  .mint { background: #e4f7f2; color: #141414; }
+  .mint .s { color: #18795f; }
+  .h2 { margin: 14px 0 6px; font-size: 12px; font-weight: 800; background: #141414; color: #ffffff; padding: 7px 10px; }
   table.data { width: 100%; border-collapse: collapse; background: #ffffff; }
   table.data th, table.data td {
     padding: 6px 7px; border-bottom: 1px solid #eeeeee;
@@ -3163,140 +3166,156 @@ function buildDailyReportHtml(day, data, logoSrc){
   .code { font-family: Consolas, "Courier New", monospace; font-size: 11px; font-weight: 800; }
   .ok { color: #18795f; font-weight: 800; }
   .hot { color: #db3332; font-weight: 800; }
-  table.split { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  table.split { width: 100%; border-collapse: collapse; margin-top: 12px; }
   table.split > tbody > tr > td { width: 50%; vertical-align: top; padding: 0; }
-  table.split > tbody > tr > td.left { padding-right: 6px; }
-  table.split > tbody > tr > td.right { padding-left: 6px; }
-  table.split h2 { margin-top: 0; }
-  .vendor-full { margin-top: 10px; }
-  .foot { width: 100%; background: #141414; color: #ffffff; }
-  .foot td { background: #141414; color: #ffffff; padding: 8px 36px 6px; font-size: 11px; font-weight: 700; }
-  .foot .mark {
-    background: #f5e023; color: #141414; padding: 3px 8px;
-    font-size: 9px; font-weight: 800;
-  }
-  .credit { text-align: center; color: #f5e023; font-size: 11px; font-weight: 800; padding-top: 4px; }
+  table.split > tbody > tr > td.left { padding-right: 8px; }
+  table.split > tbody > tr > td.right { padding-left: 8px; }
+  table.split .h2 { margin-top: 0; }
+  .block { margin-top: 12px; }
+  .foot { background: #141414; }
+  .foot-inner { width: 100%; border-collapse: collapse; }
+  .foot-inner td { background: #141414; color: #ffffff; padding: 8px 32px 4px; font-size: 11px; font-weight: 700; }
+  .mark { background: #f5e023; color: #141414; padding: 3px 8px; font-size: 9px; font-weight: 800; }
+  .credit { text-align: center; color: #f5e023; font-size: 11px; font-weight: 800; padding: 2px 32px 10px; }
 </style>
 </head>
 <body>
-  <div class="page">
-    <table class="layout hero">
-      <tr>
-        <td style="width:160px"><img src="${escapeHtml(logo)}" alt="noon minutes" /></td>
-        <td class="hero-text">
-          <div class="team">Inbound Team</div>
-          <h1>Daily Receiving Report</h1>
-          <div class="when">${escapeHtml(reportDateLabel(day))}</div>
-        </td>
-      </tr>
-    </table>
-    <div class="body">
-      <table class="kpis">
-        <tr>
-          <td class="kpi yellow">
-            <div class="l">ASNs today</div>
-            <table class="kv">
-              <tr><td>Received</td><td class="val">${nfmt(receivedAsn.size)}</td></tr>
-              <tr><td>Planned</td><td class="val">${nfmt(plannedAsn.size)}</td></tr>
-            </table>
-            <div class="s">${asnPct}% of planned ASNs are received</div>
-          </td>
-          <td class="kpi red">
-            <div class="l">Quantity (units)</div>
-            <table class="kv">
-              <tr><td>Received</td><td class="val">${nfmt(receivedQty)}</td></tr>
-              <tr><td>Planned</td><td class="val">${nfmt(plannedQty)}</td></tr>
-            </table>
-            <div class="s">${qtyPct}% of planned units are received</div>
-          </td>
-          <td class="kpi black">
-            <div class="l">Vendors</div>
-            <table class="kv">
-              <tr><td>Received</td><td class="val">${nfmt(vendorsGot.size)}</td></tr>
-              <tr><td>Planned</td><td class="val">${nfmt(vendors.size)}</td></tr>
-            </table>
-            <div class="s">${venPct}% of planned vendors are received</div>
-          </td>
-          <td class="kpi green">
-            <div class="l">Warehouse capacity</div>
-            <table class="kv">
-              <tr><td>Used today</td><td class="val">${nfmt(receivedQty)}</td></tr>
-              <tr><td>Daily limit</td><td class="val">${nfmt(totalCap)}</td></tr>
-            </table>
-            <div class="s">${capPct}% of today's warehouse capacity used</div>
-          </td>
-        </tr>
-      </table>
-      <h2>Facilities</h2>
-      <table class="data">
-        <thead>
+  <table class="sheet">
+    <tr>
+      <td class="hero">
+        <table class="hero-inner">
           <tr>
-            <th>Facility</th>
-            <th class="num">ASN received / planned</th>
-            <th class="num">Qty / Total RO</th>
-            <th class="num">Qty / Capacity</th>
-            <th class="num">%</th>
+            <td style="width:70px"><img src="${escapeHtml(logo)}" alt="noon minutes" /></td>
+            <td class="hero-text">
+              <div class="team">${reportNb("Inbound Team")}</div>
+              <h1>${reportNb("Daily Receiving Report")}</h1>
+              <div class="when">${reportNb(reportDateLabel(day))}</div>
+            </td>
           </tr>
-        </thead>
-        <tbody>
-          ${facRows}
-          <tr class="total">
-            <td>Total</td>
-            <td class="num">${nfmt(receivedAsn.size)} / ${nfmt(plannedAsn.size)}</td>
-            <td class="num">${nfmt(receivedQty)} / ${nfmt(plannedQty)}</td>
-            <td class="num">${nfmt(receivedQty)} / ${nfmt(totalCap)}</td>
-            <td class="num">${capPct}%</td>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td class="main">
+        <table class="kpis">
+          <tr>
+            <td>
+              <div class="card yellow">
+                <div class="l">${reportNb("ASNs today")}</div>
+                <table class="kv">
+                  <tr><td>${reportNb("Received")}</td><td class="val">${nfmt(receivedAsn.size)}</td></tr>
+                  <tr><td>${reportNb("Planned")}</td><td class="val">${nfmt(plannedAsn.size)}</td></tr>
+                </table>
+                <div class="s">${reportNb(asnPct + "% of planned ASNs are received")}</div>
+              </div>
+            </td>
+            <td>
+              <div class="card rose">
+                <div class="l">${reportNb("Quantity (units)")}</div>
+                <table class="kv">
+                  <tr><td>${reportNb("Received")}</td><td class="val">${nfmt(receivedQty)}</td></tr>
+                  <tr><td>${reportNb("Planned")}</td><td class="val">${nfmt(plannedQty)}</td></tr>
+                </table>
+                <div class="s">${reportNb(qtyPct + "% of planned units are received")}</div>
+              </div>
+            </td>
+            <td>
+              <div class="card ink">
+                <div class="l">${reportNb("Vendors")}</div>
+                <table class="kv">
+                  <tr><td>${reportNb("Received")}</td><td class="val">${nfmt(vendorsGot.size)}</td></tr>
+                  <tr><td>${reportNb("Planned")}</td><td class="val">${nfmt(vendors.size)}</td></tr>
+                </table>
+                <div class="s">${reportNb(venPct + "% of planned vendors are received")}</div>
+              </div>
+            </td>
+            <td>
+              <div class="card mint">
+                <div class="l">${reportNb("Warehouse capacity")}</div>
+                <table class="kv">
+                  <tr><td>${reportNb("Used today")}</td><td class="val">${nfmt(receivedQty)}</td></tr>
+                  <tr><td>${reportNb("Daily limit")}</td><td class="val">${nfmt(totalCap)}</td></tr>
+                </table>
+                <div class="s">${reportNb(capPct + "% of today's warehouse capacity used")}</div>
+              </div>
+            </td>
           </tr>
-        </tbody>
-      </table>
-      <table class="split">
-        <tr>
-          <td class="left">
-            <h2>Top 5 vendors by quantity</h2>
-            <table class="data">
-              <thead>
-                <tr><th class="rank">#</th><th>Vendor</th><th class="num">Quantity</th></tr>
-              </thead>
-              <tbody>${qtyVendorRows}</tbody>
-            </table>
-          </td>
-          <td class="right">
-            <h2>Top 5 vendors by SKU</h2>
-            <table class="data">
-              <thead>
-                <tr><th class="rank">#</th><th>Vendor</th><th class="num">SKU</th></tr>
-              </thead>
-              <tbody>${skuVendorRows}</tbody>
-            </table>
-          </td>
-        </tr>
-      </table>
-      <div class="vendor-full">
-        <h2>Top 5 vendors by planned quantity</h2>
+        </table>
+        <div class="h2">${reportNb("Facilities")}</div>
         <table class="data">
           <thead>
             <tr>
-              <th class="rank">#</th>
-              <th>Vendor</th>
-              <th class="num">Planned</th>
-              <th class="num">Received</th>
+              <th>${reportNb("Facility")}</th>
+              <th class="num">${reportNb("ASN received / planned")}</th>
+              <th class="num">${reportNb("Qty / Total RO")}</th>
+              <th class="num">${reportNb("Qty / Capacity")}</th>
               <th class="num">%</th>
             </tr>
           </thead>
-          <tbody>${planVendorRows}</tbody>
+          <tbody>
+            ${facRows}
+            <tr class="total">
+              <td>${reportNb("Total")}</td>
+              <td class="num">${reportPair(receivedAsn.size, plannedAsn.size)}</td>
+              <td class="num">${reportPair(receivedQty, plannedQty)}</td>
+              <td class="num">${reportPair(receivedQty, totalCap)}</td>
+              <td class="num">${capPct}%</td>
+            </tr>
+          </tbody>
         </table>
-      </div>
-    </div>
-    <table class="layout foot">
-      <tr>
-        <td>Inbound Daily Report · ${escapeHtml(reportDateLabel(day))}</td>
-        <td style="text-align:right"><span class="mark">noon MINUTES</span></td>
-      </tr>
-      <tr>
-        <td colspan="2" class="credit">Designed by Ibrahim Afify</td>
-      </tr>
-    </table>
-  </div>
+        <table class="split">
+          <tr>
+            <td class="left">
+              <div class="h2">${reportNb("Top 5 vendors by quantity")}</div>
+              <table class="data">
+                <thead>
+                  <tr><th class="rank">#</th><th>${reportNb("Vendor")}</th><th class="num">${reportNb("Quantity")}</th></tr>
+                </thead>
+                <tbody>${qtyVendorRows}</tbody>
+              </table>
+            </td>
+            <td class="right">
+              <div class="h2">${reportNb("Top 5 vendors by SKU")}</div>
+              <table class="data">
+                <thead>
+                  <tr><th class="rank">#</th><th>${reportNb("Vendor")}</th><th class="num">SKU</th></tr>
+                </thead>
+                <tbody>${skuVendorRows}</tbody>
+              </table>
+            </td>
+          </tr>
+        </table>
+        <div class="block">
+          <div class="h2">${reportNb("Top 5 vendors by planned quantity")}</div>
+          <table class="data">
+            <thead>
+              <tr>
+                <th class="rank">#</th>
+                <th>${reportNb("Vendor")}</th>
+                <th class="num">${reportNb("Planned")}</th>
+                <th class="num">${reportNb("Received")}</th>
+                <th class="num">%</th>
+              </tr>
+            </thead>
+            <tbody>${planVendorRows}</tbody>
+          </table>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td class="foot">
+        <table class="foot-inner">
+          <tr>
+            <td>${reportNb("Inbound Daily Report")}&nbsp;·&nbsp;${reportNb(reportDateLabel(day))}</td>
+            <td style="text-align:right"><span class="mark">${reportNb("noon MINUTES")}</span></td>
+          </tr>
+          <tr>
+            <td colspan="2" class="credit">${reportNb("Designed by Ibrahim Afify")}</td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
 </body>
 </html>`;
 }
