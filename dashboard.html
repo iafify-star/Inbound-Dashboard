@@ -179,7 +179,7 @@
   .issue.active{border-color:var(--red);background:rgba(219,51,50,.08);}
 
   /* KPI cards */
-  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px;}
+  .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:22px;}
   @media (max-width:900px){.kpis{grid-template-columns:repeat(2,1fr);}}
   @media (max-width:480px){.kpis{grid-template-columns:1fr;}}
   .kpi{
@@ -433,8 +433,7 @@
   <div class="kpis">
     <div class="kpi c1"><span class="icon">📥</span><div class="label" data-i18n="kpiAsn">ASNs received / planned</div><div class="value" id="kpiAsn">0 / 0</div><div class="sub" id="kpiAsnSub">Received 0 of 0 ASNs</div></div>
     <div class="kpi c2"><span class="icon">📦</span><div class="label" data-i18n="kpiQty">Quantity received / planned</div><div class="value" id="kpiQty">0 / 0</div><div class="sub" id="kpiQtySub">Received 0 of 0 units</div></div>
-    <div class="kpi c3"><span class="icon">🏭</span><div class="label" data-i18n="kpiVendors">Vendors</div><div class="value" id="kpiVendors">0</div></div>
-    <div class="kpi c5"><span class="icon">✅</span><div class="label" data-i18n="kpiVendorsGot">Vendors received</div><div class="value" id="kpiVendorsGot">0</div></div>
+    <div class="kpi c3"><span class="icon">🏭</span><div class="label" data-i18n="kpiVendors">Vendors received / planned</div><div class="value" id="kpiVendors">0 / 0</div><div class="sub" id="kpiVendorsSub">Received 0 of 0 vendors</div></div>
   </div>
 
   <div class="panel" style="margin-bottom:16px;">
@@ -589,8 +588,8 @@ const I18N = {
     kpiAsnSub:"Received {got} of {need} ASNs",
     kpiQty:"Quantity received / planned",
     kpiQtySub:"Received {got} of {need} units",
-    kpiVendors:"Vendors",
-    kpiVendorsSub:"Unique vendors — counted once even with many ASNs",
+    kpiVendors:"Vendors received / planned",
+    kpiVendorsSub:"Received {got} of {need} vendors",
     kpiVendorsGot:"Vendors received",
     kpiVendorsGotSub:"Vendors with quantity received, counted once",
     kpiAvg:"Avg quantity / receipt",
@@ -745,8 +744,8 @@ const I18N = {
     kpiAsnSub:"استلمنا {got} من {need} ASN",
     kpiQty:"الكمية المستلمة / المفروض",
     kpiQtySub:"استلمنا {got} من {need} وحدة",
-    kpiVendors:"الموردون",
-    kpiVendorsSub:"مورد واحد حتى لو جاي بأكثر من ASN",
+    kpiVendors:"موردون استُلموا / المفروض",
+    kpiVendorsSub:"استلمنا {got} من {need} مورد",
     kpiVendorsGot:"موردون استُلموا",
     kpiVendorsGotSub:"موردين ليهم كمية مستلمة — مرة واحدة حتى لو كذا ASN",
     kpiAvg:"متوسط الكمية / استلام",
@@ -1826,8 +1825,8 @@ function renderKPIs(data){
   setText("kpiAsnSub", t("kpiAsnSub",{got:fmt(receivedAsn.size), need:fmt(plannedAsn.size)}));
   setText("kpiQty", fmt(receivedQty)+" / "+fmt(plannedQty));
   setText("kpiQtySub", t("kpiQtySub",{got:fmt(receivedQty), need:fmt(plannedQty)}));
-  setText("kpiVendors", fmt(vendors.size));
-  setText("kpiVendorsGot", fmt(vendorsGot.size));
+  setText("kpiVendors", fmt(vendorsGot.size)+" / "+fmt(vendors.size));
+  setText("kpiVendorsSub", t("kpiVendorsSub",{got:fmt(vendorsGot.size), need:fmt(vendors.size)}));
   setText("metaCount", fmt(receivedAsn.size)+" / "+fmt(plannedAsn.size));
   const uniqueDates = [...new Set(data.map(r=>r.date))].filter(Boolean).sort();
   const metaDateEl = el("metaDate");
