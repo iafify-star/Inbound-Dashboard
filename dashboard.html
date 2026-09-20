@@ -455,8 +455,17 @@
   </div>
 
   <div class="panel" style="margin-bottom:16px;">
-      <h3 data-i18n="topVendors">Top 10 vendors</h3>
-      <p class="desc" data-i18n="topVendorsDesc">ASNs and SKUs received per vendor</p>
+    <div class="panel-toolbar">
+      <div>
+        <h3 data-i18n="topVendors">Top 10 vendors</h3>
+        <p class="desc" data-i18n="topVendorsDesc">ASNs and SKUs received per vendor</p>
+      </div>
+      <div class="sort-chips" id="vendorSortChips">
+        <button type="button" data-vendor-sort="asn" class="active" data-i18n="sortAsn">Largest ASN</button>
+        <button type="button" data-vendor-sort="sku" data-i18n="sortSku">Largest SKU</button>
+        <button type="button" data-vendor-sort="qty" data-i18n="sortQty">Largest quantity</button>
+      </div>
+    </div>
     <div class="chart-box"><canvas id="chartTopVendors"></canvas></div>
   </div>
 
@@ -614,6 +623,7 @@ const I18N = {
     empPerfDesc:"Live quantity, SKUs, and ASNs received per employee",
     sortQty:"Largest quantity",
     sortSku:"Largest SKU",
+    sortAsn:"Largest ASN",
     tooltipEmp:"{qty} units · {sku} SKU · {n} ASNs",
     hourly:"Receiving throughout the day",
     hourlyDesc:"Inbound receipts by hour of day",
@@ -770,6 +780,7 @@ const I18N = {
     empPerfDesc:"الكمية وعدد الـ SKU والـ ASN لكل موظف — لايف أول بأول",
     sortQty:"الأكبر كمية",
     sortSku:"الأكبر SKU",
+    sortAsn:"الأكبر ASN",
     tooltipEmp:"{qty} وحدة · {sku} SKU · {n} ASN",
     hourly:"توزيع الاستلام خلال اليوم",
     hourlyDesc:"الاستلامات الواردة حسب الساعة",
@@ -1087,6 +1098,7 @@ let datesInitialized = false;
 let vendorFilter = "";
 let empFilter = "";
 let empSort = "qty";
+let vendorSort = "asn";
 let exceptionType = "";
 let lastChartKey = "";
 let lastChartSkin = "";
@@ -1559,6 +1571,11 @@ function syncEmpSortChips(){
     btn.classList.toggle("active", btn.dataset.empSort===empSort);
   });
 }
+function syncVendorSortChips(){
+  document.querySelectorAll("[data-vendor-sort]").forEach(btn=>{
+    btn.classList.toggle("active", btn.dataset.vendorSort===vendorSort);
+  });
+}
 
 function syncDateChips(){
   const {from, to} = getDateBounds();
@@ -1666,6 +1683,14 @@ function initFilterEvents(){
       if(empSortBtn){
         empSort = empSortBtn.dataset.empSort || "qty";
         syncEmpSortChips();
+        lastChartKey = "";
+        render();
+        return;
+      }
+      const vendorSortBtn = e.target.closest("[data-vendor-sort]");
+      if(vendorSortBtn){
+        vendorSort = vendorSortBtn.dataset.vendorSort || "asn";
+        syncVendorSortChips();
         lastChartKey = "";
         render();
         return;
@@ -1893,7 +1918,7 @@ function chartViewKey(data){
   const emp = (el("fEmp") && el("fEmp").value) || "";
   const status = (el("fStatus") && el("fStatus").value) || "";
   const core = (data||[]).map(r => [r.date,r.asn,r.qty,r.totalRo,r.product,r.facility,r.emp,r.vendor,r.status].join("|")).join(";");
-  return [theme, currentLang, from, to, fac, emp, empFilter, empSort, status, vendorFilter, core].join("::");
+  return [theme, currentLang, from, to, fac, emp, empFilter, empSort, vendorSort, status, vendorFilter, core].join("::");
 }
 
 function upsertChart(name, canvas, config){
@@ -1984,8 +2009,13 @@ function renderCharts(data){
   const topVendorsQty = Object.entries(byVendor)
     .map(([name,v])=>({name, qty:v.qty, sku:v.sku, asns:v.asns.size}))
     .filter(v=>v.qty>0 || v.sku>0 || v.asns>0)
-    .sort((a,b)=>b.asns-a.asns || b.sku-a.sku || b.qty-a.qty)
+    .sort(vendorSort==="sku"
+      ? (a,b)=>b.sku-a.sku || b.asns-a.asns || b.qty-a.qty
+      : vendorSort==="qty"
+        ? (a,b)=>b.qty-a.qty || b.asns-a.asns || b.sku-a.sku
+        : (a,b)=>b.asns-a.asns || b.sku-a.sku || b.qty-a.qty)
     .slice(0,10);
+  syncVendorSortChips();
 
   if(chartFacilityQty) upsertChart("facilityQty", chartFacilityQty, {
     type:"bar",
