@@ -3662,7 +3662,7 @@ function drawReportPageOne(doc, model, logo){
 // تاريخ الريبورت لأن البوت اوي بتاعة النهارده بتبقى نتيجة استلام إمبارح.
 function drawPutawayPage(doc, model, logo){
   const W = 210, H = 297, x0 = 14, contentW = 182;
-  const ink = "#141414", yellow = "#f5e023", muted = "#6b6f76";
+  const ink = "#141414", yellow = "#f5e023";
   const pw = model.putaway;
 
   reportFill(doc, 0, 0, W, H, "#ffffff");
@@ -3678,10 +3678,7 @@ function drawPutawayPage(doc, model, logo){
   reportText(doc, pw.label, x0 + 20, 26.8, {size: 10, bold: true, color: "#3a3a3a"});
   reportText(doc, "PAGE 2", x0 + contentW, 16.6, {size: 9.5, bold: true, color: ink, align: "right"});
 
-  let y = headerH + 10;
-  reportText(doc, `Gate-in received vs. quantity put away per facility for ${pw.label} — the day before this report's date, since put-away closes out a day late.`,
-    x0, y, {size: 9, color: muted, maxWidth: contentW, wrap: true});
-  y += 14;
+  let y = headerH + 14;
 
   const cardGap = 6, cardH = 34, cardW = (contentW - cardGap * 2) / 3;
   const pwCards = [
