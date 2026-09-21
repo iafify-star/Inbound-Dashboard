@@ -3428,9 +3428,13 @@ function buildDailyReportModel(day, data, putawayRows){
       rows: putawayFacs.map(fac=>({
         code: fac,
         spec: FACILITY_SPECIALTY[fac] || "",
-        qty: putaway.byFac[fac].putaway
+        gateIn: putaway.byFac[fac].gateIn,
+        qty: putaway.byFac[fac].putaway,
+        pct: reportPct(putaway.byFac[fac].putaway, putaway.byFac[fac].gateIn)
       })),
-      total: putaway.putaway
+      total: putaway.putaway,
+      totalGateIn: putaway.gateIn,
+      pct: reportPct(putaway.putaway, putaway.gateIn)
     },
     topQty: reportTopVendors(vendorStats, "qty", 5),
     topSku: reportTopVendors(vendorStats, "sku", 5),
@@ -3675,40 +3679,60 @@ function drawPutawayPage(doc, model, logo){
   reportText(doc, "PAGE 2", x0 + contentW, 16.6, {size: 9.5, bold: true, color: ink, align: "right"});
 
   let y = headerH + 10;
-  reportText(doc, `Quantity put away per facility for ${pw.label} — the day before this report's date, since put-away closes out a day late.`,
+  reportText(doc, `Gate-in received vs. quantity put away per facility for ${pw.label} — the day before this report's date, since put-away closes out a day late.`,
     x0, y, {size: 9, color: muted, maxWidth: contentW, wrap: true});
   y += 14;
 
-  const cardGap = 6, cardH = 34, cardW = (contentW - cardGap) / 2;
-  reportCard(doc, x0, y, cardW, cardH, "#e4f7f2", {radius: 3});
-  reportText(doc, "TOTAL PUT AWAY", x0 + 6, y + 10, {size: 9, bold: true, color: ink});
-  reportText(doc, reportN(pw.total), x0 + 6, y + 24, {size: 22, bold: true, color: ink});
-  reportText(doc, "units", x0 + 6, y + 30, {size: 8, bold: true, color: "#18795f"});
-  reportCard(doc, x0 + cardW + cardGap, y, cardW, cardH, ink, {radius: 3});
-  reportText(doc, "FACILITIES COVERED", x0 + cardW + cardGap + 6, y + 10, {size: 9, bold: true, color: yellow});
-  reportText(doc, String(pw.rows.length), x0 + cardW + cardGap + 6, y + 24, {size: 22, bold: true, color: "#ffffff"});
-  reportText(doc, "warehouses", x0 + cardW + cardGap + 6, y + 30, {size: 8, bold: true, color: yellow});
+  const cardGap = 6, cardH = 34, cardW = (contentW - cardGap * 2) / 3;
+  const pwCards = [
+    {bg: "#fde8e8", title: "GATE-IN RECEIVED", val: pw.totalGateIn, unit: "units", dark: false},
+    {bg: "#e4f7f2", title: "PUT AWAY", val: pw.total, unit: "units", dark: false},
+    {bg: ink, title: "PUT-AWAY RATE", val: null, pct: pw.pct, dark: true}
+  ];
+  pwCards.forEach((c, i)=>{
+    const x = x0 + i * (cardW + cardGap);
+    const titleC = c.dark ? yellow : ink;
+    const numC = c.dark ? "#ffffff" : ink;
+    const unitC = c.dark ? yellow : "#18795f";
+    reportCard(doc, x, y, cardW, cardH, c.bg, {radius: 3});
+    reportText(doc, c.title, x + 5, y + 10, {size: 8.6, bold: true, color: titleC, maxWidth: cardW - 10});
+    if(c.pct != null){
+      reportText(doc, c.pct + "%", x + 5, y + 25, {size: 22, bold: true, color: numC});
+      reportRoundBar(doc, x + 5, y + 29, cardW - 10, 2.2, c.pct, "#333333", yellow);
+    }else{
+      reportText(doc, reportN(c.val), x + 5, y + 25, {size: 22, bold: true, color: numC});
+      reportText(doc, c.unit, x + 5, y + 30.5, {size: 8, bold: true, color: unitC});
+    }
+  });
   y += cardH + 12;
 
-  reportSectionHead(doc, x0, y, contentW, "Put-away by facility");
+  reportSectionHead(doc, x0, y, contentW, "Gate-in vs. put-away by facility");
   y += 8;
-  const cols = [{w: 70, align: "left"}, {w: 62, align: "left"}, {w: 50, align: "right"}];
-  reportColHeadRow(doc, x0, y, cols, ["FACILITY", "DATE", "QUANTITY"]);
+  const cols = [{w: 46, align: "left"}, {w: 40, align: "left"}, {w: 34, align: "right"}, {w: 34, align: "right"}, {w: 28, align: "right"}];
+  reportColHeadRow(doc, x0, y, cols, ["FACILITY", "DATE", "GATE-IN", "PUT AWAY", "%"]);
   y += 9;
-  const rows = pw.rows.concat([{ total: true, qty: pw.total }]);
+  const rows = pw.rows.concat([{ total: true, gateIn: pw.totalGateIn, qty: pw.total, pct: pw.pct }]);
   rows.forEach((r, i)=>{
     const rh = 11;
     reportFill(doc, x0, y, contentW, rh, r.total ? "#fff6b0" : (i % 2 === 1 ? "#fbfbfc" : "#ffffff"));
     const midY = y + rh / 2 + 1.8;
+    let cx = x0;
     if(r.total){
-      reportText(doc, "TOTAL", x0 + 2, midY, {size: 10, bold: true, color: ink});
+      reportText(doc, "TOTAL", cx + 2, midY, {size: 10, bold: true, color: ink});
     }else{
-      reportText(doc, r.code, x0 + 2, midY, {size: 10, bold: true, color: ink});
+      reportText(doc, r.code, cx + 2, midY, {size: 10, bold: true, color: ink});
       const codeW = doc.getTextWidth(r.code) + 3;
-      if(r.spec) reportText(doc, r.spec, x0 + 2 + codeW, midY, {size: 8.5, color: "#8a8f98"});
+      if(r.spec) reportText(doc, r.spec, cx + 2 + codeW, midY, {size: 8.5, color: "#8a8f98", maxWidth: cols[0].w - codeW - 4});
     }
-    if(!r.total) reportText(doc, pw.label, x0 + cols[0].w + 2, midY, {size: 9, color: "#555555"});
-    reportText(doc, reportN(r.qty), x0 + contentW - 2, midY, {size: 11, bold: true, color: ink, align: "right"});
+    cx += cols[0].w;
+    if(!r.total) reportText(doc, pw.label, cx + 2, midY, {size: 8.6, color: "#555555", maxWidth: cols[1].w - 4});
+    cx += cols[1].w;
+    reportText(doc, reportN(r.gateIn), cx + cols[2].w - 2, midY, {size: 10, color: ink, align: "right"});
+    cx += cols[2].w;
+    reportText(doc, reportN(r.qty), cx + cols[3].w - 2, midY, {size: 10, bold: true, color: ink, align: "right"});
+    cx += cols[3].w;
+    const pc = r.pct >= 100 ? "#18795f" : r.pct > 0 ? "#141414" : "#db3332";
+    reportText(doc, r.pct + "%", cx + cols[4].w - 2, midY, {size: 10, bold: true, color: pc, align: "right"});
     doc.setDrawColor.apply(doc, reportRgb("#eeeeee"));
     doc.setLineWidth(0.2);
     doc.line(x0, y + rh, x0 + contentW, y + rh);
