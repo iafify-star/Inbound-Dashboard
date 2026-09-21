@@ -261,6 +261,12 @@
   .yard-vendor{font-weight:800;font-size:13px;line-height:1.4;color:var(--black);margin-bottom:7px;white-space:normal;}
   .yard-meta{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;}
   .yard-meta .qty{font-size:13px;}
+  .yard-stages{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);}
+  .stage-time{font-size:11px;font-weight:700;color:var(--muted);white-space:nowrap;}
+  .stage-time b{font-weight:800;margin-inline-end:4px;}
+  .stage-time.arrive b{color:#0891b2;}
+  .stage-time.dock b{color:var(--yellow-dark);}
+  .stage-time.received b{color:var(--green);}
   .yard-empty{text-align:center;color:var(--muted);padding:28px 10px;font-size:13px;}
   .facility-tag{
     background:var(--panel-2);border:1px solid var(--border);border-radius:8px;
@@ -2644,7 +2650,58 @@ function statusPill(status){
   return "received";
 }
 
-function yardRowHtml(r){
+// ===================== YARD STAGE TIMES =====================
+// الشيت مسجل عمود وقت واحد بس (Arrival Time) + Status. مفيش وقت حقيقي لحظة ما
+// الحالة تتحول لـ Dock أو Received، فالداشبورد نفسه بيسجل (في المتصفح) أول لحظة
+// شاف فيها كل ASN بقى Dock أو Received، ويحتفظ بيها في localStorage.
+// ده تقريبي: بيبدأ يتسجل من أول ما الداشبورد يتفتح، ومش متزامن بين الأجهزة.
+const YARD_TIMES_KEY = "inbound-yard-times";
+function loadYardTimes(){
+  try{
+    const raw = JSON.parse(localStorage.getItem(YARD_TIMES_KEY) || "{}");
+    return raw && typeof raw === "object" ? raw : {};
+  }catch(e){
+    return {};
+  }
+}
+function saveYardTimes(map){
+  try{ localStorage.setItem(YARD_TIMES_KEY, JSON.stringify(map)); }catch(e){}
+}
+// بيتنادى مرة واحدة كل تحديث على كل الداتا (RAW_DATA) عشان ميفوتش تحول حصل وقت الفلتر شغال
+function recordYardTimes(rows){
+  const map = loadYardTimes();
+  let changed = false;
+  (rows||[]).forEach(r=>{
+    const lane = yardLane(r);
+    if(lane !== "dock" && lane !== "received") return;
+    const key = asnKey(r);
+    if(!key) return;
+    if(!map[key]) map[key] = {};
+    if(!map[key][lane]){
+      map[key][lane] = Date.now();
+      changed = true;
+    }
+  });
+  if(changed) saveYardTimes(map);
+  return map;
+}
+function yardStageTime(map, r, stage){
+  if(stage === "arrive") return r.arrival || null;
+  const key = asnKey(r);
+  const ms = map && map[key] && map[key][stage];
+  return ms ? new Date(ms).toLocaleTimeString([], {hour:"numeric", minute:"2-digit", second:"2-digit"}) : null;
+}
+function yardStagesHtml(map, r){
+  return `
+    <div class="yard-stages" dir="ltr">
+      <span class="stage-time arrive"><b>${t("hourlyArrive")}</b> ${escapeHtml(yardStageTime(map, r, "arrive") || "—")}</span>
+      <span class="stage-time dock"><b>${t("hourlyDock")}</b> ${escapeHtml(yardStageTime(map, r, "dock") || "—")}</span>
+      <span class="stage-time received"><b>${t("hourlyReceived")}</b> ${escapeHtml(yardStageTime(map, r, "received") || "—")}</span>
+    </div>
+  `;
+}
+
+function yardRowHtml(r, timesMap){
   return `
     <div class="yard-row">
       <div class="yard-vendor">${escapeHtml(r.vendor || "—")}</div>
@@ -2652,9 +2709,9 @@ function yardRowHtml(r){
         <span class="mono">${escapeHtml(r.asn || "—")}</span>
         <span class="facility-tag">${escapeHtml(r.facility || "—")}</span>
         <span class="qty">${fmt(r.totalRo||0)}</span>
-        <span>${escapeHtml(r.arrival || "—")}</span>
         <span>${escapeHtml(r.emp || "—")}</span>
       </div>
+      ${yardStagesHtml(timesMap, r)}
     </div>
   `;
 }
@@ -2667,10 +2724,10 @@ function sortByArrivalDesc(rows){
   });
 }
 // عمود واحد داخل مربع Dock/Arrive: عنوانه أكواد المخازن + عدد الشركات + قائمة الصفوف
-function yardGroupHtml(label, rows){
+function yardGroupHtml(label, rows, timesMap){
   const vendors = new Set(rows.map(r=>(r.vendor||"").trim()).filter(Boolean));
   const list = rows.length
-    ? sortByArrivalDesc(rows).map(yardRowHtml).join("")
+    ? sortByArrivalDesc(rows).map(r=>yardRowHtml(r, timesMap)).join("")
     : `<div class="yard-empty">${t("yardZoneEmpty")}</div>`;
   return `
     <div class="yard-group">
@@ -2683,7 +2740,7 @@ function yardGroupHtml(label, rows){
   `;
 }
 
-function fillYardTable(bodyId, countId, rows, emptyKey){
+function fillYardTable(bodyId, countId, rows, emptyKey, timesMap){
   const body = el(bodyId);
   const count = el(countId);
   if(!body) return;
@@ -2697,22 +2754,24 @@ function fillYardTable(bodyId, countId, rows, emptyKey){
   const zoneB = rows.filter(r=>!YARD_ZONE_A.includes(r.facility));
   const labelB = CAPACITY_ORDER.filter(f=>!YARD_ZONE_A.includes(f)).join(" · ") || t("yardZoneRest");
   body.innerHTML = `<div class="yard-groups">
-    ${yardGroupHtml(YARD_ZONE_A.join(" · "), zoneA)}
-    ${yardGroupHtml(labelB, zoneB)}
+    ${yardGroupHtml(YARD_ZONE_A.join(" · "), zoneA, timesMap)}
+    ${yardGroupHtml(labelB, zoneB, timesMap)}
   </div>`;
 }
 
-function renderYardTables(data){
+function renderYardTables(data, timesMap){
+  const map = timesMap || recordYardTimes(RAW_DATA);
   const dock = (data||[]).filter(r=>/^dock$/i.test((r.status||"").trim()));
   const arrive = (data||[]).filter(r=>/^arrive/i.test((r.status||"").trim()));
-  fillYardTable("dockBody", "dockCount", dock, "dockEmpty");
-  fillYardTable("arriveBody", "arriveCount", arrive, "arriveEmpty");
+  fillYardTable("dockBody", "dockCount", dock, "dockEmpty", map);
+  fillYardTable("arriveBody", "arriveCount", arrive, "arriveEmpty", map);
 }
 
-function renderLateList(data){
+function renderLateList(data, timesMap){
   const body = el("lateBody");
   const count = el("lateCount");
   if(!body) return;
+  const map = timesMap || recordYardTimes(RAW_DATA);
   const rows = (data||[]).filter(isLateYard).sort((a,b)=>{
     return (waitMinutes(b.date, b.arrival)??-1) - (waitMinutes(a.date, a.arrival)??-1);
   });
@@ -2731,9 +2790,9 @@ function renderLateList(data){
           <span class="yard-wait">${escapeHtml(waitLabel(wait))}</span>
           <span class="mono">${escapeHtml(r.asn || "—")}</span>
           <span class="facility-tag">${escapeHtml(r.facility || "—")}</span>
-          <span>${escapeHtml(r.arrival || "—")}</span>
           <span>${escapeHtml(r.emp || "—")}</span>
         </div>
+        ${yardStagesHtml(map, r)}
       </div>
     `;
   }).join("");
@@ -3592,13 +3651,14 @@ async function openDailyReport(){
 function render(){
   try{
     const data = getFiltered();
+    const yardTimes = recordYardTimes(RAW_DATA);
     syncDateChips();
     renderKPIs(data);
     renderCapacity(data);
     renderAlerts(data);
     renderCharts(data);
-    renderLateList(data);
-    renderYardTables(data);
+    renderLateList(data, yardTimes);
+    renderYardTables(data, yardTimes);
     renderTable(data);
   }catch(err){
     console.warn("Dashboard render recovered from an error:", err);
