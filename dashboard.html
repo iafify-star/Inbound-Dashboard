@@ -3383,16 +3383,23 @@ function buildDailyReportModel(day, data, putawayRows){
     const v = byFac[fac] || {qty:0, ro:0, asn:new Set(), got:new Set()};
     const cap = capMap[fac] || 0;
     totalCap += cap;
-    const pw = putaway.byFac[fac];
     return {
       code: fac,
       spec: FACILITY_SPECIALTY[fac] || "",
       asn: reportPair(v.got.size, v.asn.size),
       qty: reportPair(v.qty, v.ro),
       cap: reportPair(v.qty, cap),
-      pct: reportPct(v.qty, cap),
-      gateIn: pw ? reportPair(pw.gateIn, pw.putaway) : null
+      pct: reportPct(v.qty, cap)
     };
+  });
+  // جدول Put-away قائم بنفسه: مستودعاته من شيت PUT AWAY بس (مش لازم يكون فيه استلام النهارده
+  // في الشيت الرئيسي)، وتاريخه يوم قبل تاريخ الريبورت.
+  const putawayFacs = Object.keys(putaway.byFac).sort((a,b)=>{
+    const ia = CAPACITY_ORDER.indexOf(a), ib = CAPACITY_ORDER.indexOf(b);
+    if(ia>=0 && ib>=0) return ia-ib;
+    if(ia>=0) return -1;
+    if(ib>=0) return 1;
+    return a.localeCompare(b);
   });
   const asnPct = reportPct(receivedAsn.size, plannedAsn.size);
   const qtyPct = reportPct(receivedQty, plannedQty);
@@ -3418,9 +3425,12 @@ function buildDailyReportModel(day, data, putawayRows){
     facs: facRows,
     putaway: {
       label: reportDateLabel(putawayDay),
-      gateIn: putaway.gateIn,
-      putaway: putaway.putaway,
-      pct: reportPct(putaway.putaway, putaway.gateIn)
+      rows: putawayFacs.map(fac=>({
+        code: fac,
+        spec: FACILITY_SPECIALTY[fac] || "",
+        qty: putaway.byFac[fac].putaway
+      })),
+      total: putaway.putaway
     },
     topQty: reportTopVendors(vendorStats, "qty", 5),
     topSku: reportTopVendors(vendorStats, "sku", 5),
@@ -3482,16 +3492,14 @@ function drawFacilityRow(doc, x0, y, rh, cols, row, zebra){
     }
   }
   let cx = x0 + cols[0].w;
-  const hasGateIn = row.gateIn != null;
-  const vals = [row.asn, row.qty, row.cap, hasGateIn ? row.gateIn : "—"];
-  for(let i = 0; i < 4; i++){
-    const color = (i === 3 && !hasGateIn) ? "#b7bac2" : "#141414";
-    reportText(doc, vals[i], cx + cols[i + 1].w - 1.6, midY, {size: 8.4, color, align: "right", maxWidth: cols[i + 1].w - 3.2});
+  const vals = [row.asn, row.qty, row.cap];
+  for(let i = 0; i < 3; i++){
+    reportText(doc, vals[i], cx + cols[i + 1].w - 1.6, midY, {size: 8.4, color: "#141414", align: "right", maxWidth: cols[i + 1].w - 3.2});
     cx += cols[i + 1].w;
   }
-  const pctColW = cols[5].w, barW = 10;
+  const pctColW = cols[4].w, barW = 15;
   const barColor = row.total ? "#141414" : (row.pct >= 100 ? "#db3332" : row.pct > 0 ? "#18795f" : "#c7c9cf");
-  const barX = cx + 1.6;
+  const barX = cx + pctColW - barW - 12;
   reportRoundBar(doc, barX, y + rh / 2 - 1.1, barW, 2.2, row.pct, "#eaecef", barColor);
   reportText(doc, row.pct + "%", cx + pctColW - 1.6, midY, {size: 8.4, bold: true, color: barColor, align: "right"});
   doc.setDrawColor.apply(doc, reportRgb("#eeeeee"));
@@ -3524,7 +3532,18 @@ function drawEmptyVendorRow(doc, x0, y, rh, w){
   doc.setLineWidth(0.15);
   doc.line(x0, y + rh, x0 + w, y + rh);
 }
-function drawDailyReportPdf(doc, model, logo){
+function reportFooter(doc, x0, W, H, label){
+  const ink = "#141414", yellow = "#f5e023";
+  const footH = 18, fy = H - footH;
+  reportFill(doc, 0, fy, W, footH, ink);
+  reportFill(doc, 0, fy, 3, footH, yellow);
+  reportText(doc, "INBOUND DAILY REPORT", x0, fy + 6.4, {size: 8, bold: true, color: "#ffffff"});
+  reportText(doc, label, x0, fy + 12, {size: 7.5, color: "#9a9a86"});
+  reportCard(doc, W - x0 - 30, fy + 4.6, 30, 6.2, yellow, {radius: 1.4});
+  reportText(doc, "noon MINUTES", W - x0 - 15, fy + 8.6, {size: 7, bold: true, color: ink, align: "center"});
+  reportText(doc, "Designed by Ibrahim Afify", W / 2, fy + 14.2, {size: 8, bold: true, color: yellow, align: "center"});
+}
+function drawReportPageOne(doc, model, logo){
   const W = 210, H = 297, x0 = 14, contentW = 182;
   const ink = "#141414", yellow = "#f5e023", muted = "#6b6f76";
 
@@ -3570,29 +3589,26 @@ function drawDailyReportPdf(doc, model, logo){
     reportText(doc, c.pct + "% " + (c.capacity ? "used" : "received"), x + cardW - 4, y + 34.8, {size: 8, bold: true, color: numC, align: "right"});
   });
 
-  y += cardH + 8;
+  y += cardH + 9;
 
   reportSectionHead(doc, x0, y, contentW, "Facilities");
   y += 8;
-  reportText(doc, `Gate-in / put-away figures are for ${model.putaway.label} (previous day)`, x0 + 1.6, y + 3.6, {size: 7.2, color: "#8a8f98", maxWidth: contentW - 3.2});
-  y += 5;
-  const facCols = [{w: 40, align: "left"}, {w: 24, align: "right"}, {w: 32, align: "right"}, {w: 30, align: "right"}, {w: 34, align: "right"}, {w: 22, align: "right"}];
-  reportColHeadRow(doc, x0, y, facCols, ["FACILITY", "ASN", "QTY / RO", "QTY / CAP", "GATE-IN / PUTAWAY", "%"]);
+  const facCols = [{w: 46, align: "left"}, {w: 34, align: "right"}, {w: 34, align: "right"}, {w: 34, align: "right"}, {w: 34, align: "right"}];
+  reportColHeadRow(doc, x0, y, facCols, ["FACILITY", "ASN RECEIVED / PLANNED", "QTY / TOTAL RO", "QTY / CAPACITY", "% USED"]);
   y += 7;
   const facRows = model.facs.concat([{
     total: true,
     asn: reportPair(model.kpis.asnGot, model.kpis.asnPlan),
     qty: reportPair(model.kpis.qtyGot, model.kpis.qtyPlan),
     cap: reportPair(model.kpis.qtyGot, model.kpis.cap),
-    pct: model.kpis.capPct,
-    gateIn: reportPair(model.putaway.gateIn, model.putaway.putaway)
+    pct: model.kpis.capPct
   }]);
   facRows.forEach((r, i)=>{
     drawFacilityRow(doc, x0, y, 7, facCols, r, i % 2 === 1);
     y += 7;
   });
 
-  y += 9;
+  y += 10;
   const half = (contentW - 4) / 2;
   const startY = y;
   function drawVendorTable(x, title, rows, valueKey, valueLabel){
@@ -3615,7 +3631,7 @@ function drawDailyReportPdf(doc, model, logo){
   }
   const yLeft = drawVendorTable(x0, "Top 5 Vendors by Quantity", model.topQty, "qty", "Quantity");
   const yRight = drawVendorTable(x0 + half + 4, "Top 5 Vendors by SKU", model.topSku, "sku", "SKU");
-  y = Math.max(yLeft, yRight) + 9;
+  y = Math.max(yLeft, yRight) + 10;
 
   reportSectionHead(doc, x0, y, contentW, "Top 5 Vendors by Planned Quantity");
   y += 8;
@@ -3636,14 +3652,77 @@ function drawDailyReportPdf(doc, model, logo){
     y += 7;
   }
 
-  const footH = 18, fy = H - footH;
-  reportFill(doc, 0, fy, W, footH, ink);
-  reportFill(doc, 0, fy, 3, footH, yellow);
-  reportText(doc, "INBOUND DAILY REPORT", x0, fy + 6.4, {size: 8, bold: true, color: "#ffffff"});
-  reportText(doc, model.label, x0, fy + 12, {size: 7.5, color: "#9a9a86"});
-  reportCard(doc, W - x0 - 30, fy + 4.6, 30, 6.2, yellow, {radius: 1.4});
-  reportText(doc, "noon MINUTES", W - x0 - 15, fy + 8.6, {size: 7, bold: true, color: ink, align: "center"});
-  reportText(doc, "Designed by Ibrahim Afify", W / 2, fy + 14.2, {size: 8, bold: true, color: yellow, align: "center"});
+  reportFooter(doc, x0, W, H, model.label);
+}
+// صفحة تانية مستقلة بالكامل لـ Put-away. مستودعاتها من شيت PUT AWAY بس، وتاريخها يوم قبل
+// تاريخ الريبورت لأن البوت اوي بتاعة النهارده بتبقى نتيجة استلام إمبارح.
+function drawPutawayPage(doc, model, logo){
+  const W = 210, H = 297, x0 = 14, contentW = 182;
+  const ink = "#141414", yellow = "#f5e023", muted = "#6b6f76";
+  const pw = model.putaway;
+
+  reportFill(doc, 0, 0, W, H, "#ffffff");
+
+  const headerH = 32;
+  reportFill(doc, 0, 0, W, headerH, yellow);
+  reportFill(doc, 0, headerH - 1.6, W, 1.6, ink);
+  if(logo && String(logo).slice(0, 5) === "data:"){
+    try{ doc.addImage(logo, logo.indexOf("image/jpeg") >= 0 ? "JPEG" : "PNG", x0, 8, 16, 16); }catch(e){}
+  }
+  reportText(doc, "INBOUND TEAM", x0 + 20, 12, {size: 8.5, bold: true, color: ink});
+  reportText(doc, "Put-away Report", x0 + 20, 20.6, {size: 18, bold: true, color: ink});
+  reportText(doc, pw.label, x0 + 20, 26.8, {size: 10, bold: true, color: "#3a3a3a"});
+  reportText(doc, "PAGE 2", x0 + contentW, 16.6, {size: 9.5, bold: true, color: ink, align: "right"});
+
+  let y = headerH + 10;
+  reportText(doc, `Quantity put away per facility for ${pw.label} — the day before this report's date, since put-away closes out a day late.`,
+    x0, y, {size: 9, color: muted, maxWidth: contentW, wrap: true});
+  y += 14;
+
+  const cardGap = 6, cardH = 34, cardW = (contentW - cardGap) / 2;
+  reportCard(doc, x0, y, cardW, cardH, "#e4f7f2", {radius: 3});
+  reportText(doc, "TOTAL PUT AWAY", x0 + 6, y + 10, {size: 9, bold: true, color: ink});
+  reportText(doc, reportN(pw.total), x0 + 6, y + 24, {size: 22, bold: true, color: ink});
+  reportText(doc, "units", x0 + 6, y + 30, {size: 8, bold: true, color: "#18795f"});
+  reportCard(doc, x0 + cardW + cardGap, y, cardW, cardH, ink, {radius: 3});
+  reportText(doc, "FACILITIES COVERED", x0 + cardW + cardGap + 6, y + 10, {size: 9, bold: true, color: yellow});
+  reportText(doc, String(pw.rows.length), x0 + cardW + cardGap + 6, y + 24, {size: 22, bold: true, color: "#ffffff"});
+  reportText(doc, "warehouses", x0 + cardW + cardGap + 6, y + 30, {size: 8, bold: true, color: yellow});
+  y += cardH + 12;
+
+  reportSectionHead(doc, x0, y, contentW, "Put-away by facility");
+  y += 8;
+  const cols = [{w: 70, align: "left"}, {w: 62, align: "left"}, {w: 50, align: "right"}];
+  reportColHeadRow(doc, x0, y, cols, ["FACILITY", "DATE", "QUANTITY"]);
+  y += 9;
+  const rows = pw.rows.concat([{ total: true, qty: pw.total }]);
+  rows.forEach((r, i)=>{
+    const rh = 11;
+    reportFill(doc, x0, y, contentW, rh, r.total ? "#fff6b0" : (i % 2 === 1 ? "#fbfbfc" : "#ffffff"));
+    const midY = y + rh / 2 + 1.8;
+    if(r.total){
+      reportText(doc, "TOTAL", x0 + 2, midY, {size: 10, bold: true, color: ink});
+    }else{
+      reportText(doc, r.code, x0 + 2, midY, {size: 10, bold: true, color: ink});
+      const codeW = doc.getTextWidth(r.code) + 3;
+      if(r.spec) reportText(doc, r.spec, x0 + 2 + codeW, midY, {size: 8.5, color: "#8a8f98"});
+    }
+    if(!r.total) reportText(doc, pw.label, x0 + cols[0].w + 2, midY, {size: 9, color: "#555555"});
+    reportText(doc, reportN(r.qty), x0 + contentW - 2, midY, {size: 11, bold: true, color: ink, align: "right"});
+    doc.setDrawColor.apply(doc, reportRgb("#eeeeee"));
+    doc.setLineWidth(0.2);
+    doc.line(x0, y + rh, x0 + contentW, y + rh);
+    y += rh;
+  });
+
+  reportFooter(doc, x0, W, H, model.label);
+}
+function drawDailyReportPdf(doc, model, logo){
+  drawReportPageOne(doc, model, logo);
+  if(model.putaway && model.putaway.rows && model.putaway.rows.length){
+    doc.addPage();
+    drawPutawayPage(doc, model, logo);
+  }
 }
 function setReportButtonBusy(busy){
   const btn = document.getElementById("btnDailyReport");
