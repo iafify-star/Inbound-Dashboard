@@ -152,6 +152,7 @@
     border-radius:999px;padding:7px 12px;font-size:12px;font-weight:700;
     font-family:inherit;cursor:pointer;
   }
+  .toolbar-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;}
   .chip-bar{display:flex;flex-wrap:wrap;gap:8px;margin:-8px 0 16px;}
   .chip-bar:empty{display:none;}
   .chip{display:inline-flex;align-items:center;gap:6px;}
@@ -318,6 +319,7 @@
     border-radius:999px;padding:9px 14px;font-size:13px;cursor:pointer;font-family:inherit;
   }
   .btn-ghost:hover{border-color:var(--yellow-dark);}
+  .btn-ghost.small{padding:7px 12px;font-size:12px;}
   .btn-report{
     background:var(--yellow);border:none;color:var(--ink);font-weight:800;
     border-radius:999px;padding:9px 16px;font-size:13px;cursor:pointer;font-family:inherit;
@@ -509,9 +511,12 @@
         <h3 data-i18n="empPerf">Inbound employee performance</h3>
         <p class="desc" data-i18n="empPerfDesc">Live quantity, SKUs, and ASNs received per employee</p>
       </div>
-      <div class="sort-chips" id="empSortChips">
-        <button type="button" data-emp-sort="qty" class="active" data-i18n="sortQty">Largest quantity</button>
-        <button type="button" data-emp-sort="sku" data-i18n="sortSku">Largest SKU</button>
+      <div class="toolbar-actions">
+        <div class="sort-chips" id="empSortChips">
+          <button type="button" data-emp-sort="qty" class="active" data-i18n="sortQty">Largest quantity</button>
+          <button type="button" data-emp-sort="sku" data-i18n="sortSku">Largest SKU</button>
+        </div>
+        <button type="button" class="btn-ghost small" id="btnExportEmp" data-i18n="exportEmpExcel">Export ranking</button>
       </div>
     </div>
     <div class="chart-box tall"><canvas id="chartEmpPerf"></canvas></div>
@@ -663,6 +668,7 @@ const I18N = {
     sortQty:"Largest quantity",
     sortSku:"Largest SKU",
     sortAsn:"Largest ASN",
+    exportEmpExcel:"Export ranking",
     tooltipEmp:"{qty} units · {sku} SKU · {n} ASNs",
     hourly:"Today's ASN timeline",
     hourlyDesc:"ASNs by arrival hour — Arrive → Dock → Received",
@@ -834,6 +840,7 @@ const I18N = {
     sortQty:"الأكبر كمية",
     sortSku:"الأكبر SKU",
     sortAsn:"الأكبر ASN",
+    exportEmpExcel:"تصدير الترتيب",
     tooltipEmp:"{qty} وحدة · {sku} SKU · {n} ASN",
     hourly:"تايملاين اليوم",
     hourlyDesc:"الـ ASN حسب ساعة الوصول — Arrive → Dock → Received",
@@ -1991,6 +1998,7 @@ function initFilterEvents(){
   on("btnRefresh", "click", ()=>loadData({manual:true}));
   on("btnDailyReport", "click", openDailyReport);
   on("btnExport", "click", exportExcel);
+  on("btnExportEmp", "click", exportEmpRanking);
   on("btnPrint", "click", ()=>window.print());
   on("btnCopyLink", "click", ()=>{
     syncUrl();
@@ -2994,6 +3002,54 @@ function exportExcel(){
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = `inbound-receiving-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// ترتيب الموظفين بالكمية وبالـ SKU. نفس حساب شارت "Inbound employee performance"
+function computeEmpRanking(data){
+  const byEmp = {};
+  (data||[]).forEach(r=>{
+    const qty = r.qty || 0;
+    empNamesFromCell(r.emp).forEach(name=>{
+      if(!byEmp[name]) byEmp[name] = {qty:0, sku:0, asns:new Set()};
+      byEmp[name].qty += qty;
+      if(isReceivedRow(r)){
+        byEmp[name].asns.add(asnKey(r));
+        byEmp[name].sku += r.product||0;
+      }
+    });
+  });
+  return Object.entries(byEmp)
+    .map(([name,v])=>({name, qty:v.qty, sku:v.sku, asns:v.asns.size}))
+    .filter(e=>e.qty>0 || e.sku>0 || e.asns>0);
+}
+// تصدير شيت واحد فيه ترتيب الموظفين بالكمية جنب ترتيبهم بالـ SKU
+function exportEmpRanking(){
+  const rows = computeEmpRanking(getFiltered());
+  const byQty = [...rows].sort((a,b)=>b.qty-a.qty || b.sku-a.sku || a.name.localeCompare(b.name));
+  const bySku = [...rows].sort((a,b)=>b.sku-a.sku || b.qty-a.qty || a.name.localeCompare(b.name));
+  const headers = ["Rank","Employee (by quantity)","Quantity received","ASNs","","Employee (by SKU)","SKU count","ASNs"];
+  const lines = [headers.join(",")];
+  const n = Math.max(byQty.length, bySku.length);
+  const esc = v=>{
+    const s = String(v??"");
+    return /[",\n]/.test(s) ? `"${s.replaceAll('"','""')}"` : s;
+  };
+  for(let i=0;i<n;i++){
+    const q = byQty[i], s = bySku[i];
+    const cells = [
+      i+1,
+      q ? q.name : "", q ? q.qty : "", q ? q.asns : "",
+      "",
+      s ? s.name : "", s ? s.sku : "", s ? s.asns : ""
+    ];
+    lines.push(cells.map(esc).join(","));
+  }
+  const blob = new Blob(["\uFEFF"+lines.join("\n")], {type:"text/csv;charset=utf-8"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `inbound-employee-ranking-${new Date().toISOString().slice(0,10)}.csv`;
   a.click();
   URL.revokeObjectURL(a.href);
 }
