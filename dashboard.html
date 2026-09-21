@@ -242,6 +242,18 @@
   .yard-head .pill{font-size:12px;padding:5px 12px;}
   .yard-count{color:var(--muted);font-size:13px;font-weight:700;}
   .yard-list{display:flex;flex-direction:column;gap:8px;max-height:380px;overflow:auto;}
+  .yard-list.yard-list-split{max-height:none;overflow:visible;}
+  .yard-groups{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  @media (max-width:560px){.yard-groups{grid-template-columns:1fr;}}
+  .yard-group{display:flex;flex-direction:column;min-width:0;}
+  .yard-group-head{
+    display:flex;align-items:baseline;justify-content:space-between;gap:8px;
+    margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border);
+  }
+  .yard-group-label{font-size:11.5px;font-weight:800;color:var(--text);font-family:Consolas, "Courier New", monospace;}
+  .yard-group-count{font-size:11px;font-weight:700;color:var(--muted);white-space:nowrap;}
+  .yard-group-list{display:flex;flex-direction:column;gap:8px;max-height:380px;overflow:auto;}
+  .yard-group-list .yard-empty{padding:16px 6px;}
   .yard-row{
     padding:11px 12px;border:1px solid var(--border);border-radius:12px;
     background:var(--panel-2);
@@ -528,14 +540,14 @@
         <span class="pill dock" data-i18n="dockTitle">Dock</span>
         <span class="yard-count" id="dockCount">0</span>
       </div>
-      <div class="yard-list" id="dockBody"></div>
+      <div class="yard-list yard-list-split" id="dockBody"></div>
     </div>
     <div class="panel yard-panel">
       <div class="yard-head">
         <span class="pill arrive" data-i18n="arriveTitle">Arrive</span>
         <span class="yard-count" id="arriveCount">0</span>
       </div>
-      <div class="yard-list" id="arriveBody"></div>
+      <div class="yard-list yard-list-split" id="arriveBody"></div>
     </div>
   </div>
 
@@ -690,6 +702,8 @@ const I18N = {
     dockEmpty:"No vendors at dock",
     arriveEmpty:"No arrived vendors",
     yardVendors:"{n} vendors",
+    yardZoneEmpty:"No vendors in this zone",
+    yardZoneRest:"Other facilities",
     tableSearch:"🔍 Quick search in table...",
     thDate:"Date", thVendor:"Vendor", thRo:"RO", thAsn:"ASN", thFacility:"Facility",
     thQty:"Quantity", thTotalRo:"Total RO", thStatus:"Status", thArrival:"Arrival time", thEmp:"Employee", thCars:"Cars", thSku:"SKU",
@@ -862,6 +876,8 @@ const I18N = {
     dockEmpty:"مفيش شركات على الـ Dock",
     arriveEmpty:"مفيش شركات Arrive",
     yardVendors:"{n} شركات",
+    yardZoneEmpty:"مفيش شركات في المجموعة دي",
+    yardZoneRest:"باقي المخازن",
     tableSearch:"🔍 بحث سريع في الجدول...",
     thDate:"التاريخ", thVendor:"المورد", thRo:"RO", thAsn:"ASN", thFacility:"المستودع",
     thQty:"الكمية", thTotalRo:"إجمالي RO", thStatus:"الحالة", thArrival:"وقت الوصول", thEmp:"الموظف", thCars:"السيارات", thSku:"SKU",
@@ -1065,6 +1081,10 @@ const CAPACITY_DATA = {
   "CAIID07":    5700,
 };
 const CAPACITY_ORDER = ["CAIID01","CAIID02","CAIID03+04","CAIID05","CAIID06","CAIID07"];
+
+// تقسيم مربعات Dock/Arrive بصريًا لعمودين حسب المخزن: عمود أ = 03+04 / 05 / 07، عمود ب الباقي.
+// لو ضفت مستودع جديد يخص عمود أ، ضيفه هنا في الأراي.
+const YARD_ZONE_A = ["CAIID03+04","CAIID05","CAIID07"];
 
 // ===================== FALLBACK SNAPSHOT =====================
 // تظهر فقط لو الشيت وقع من أول تحميل. متحدثهاش يومياً — الشيت هو المصدر.
@@ -2639,6 +2659,30 @@ function yardRowHtml(r){
   `;
 }
 
+function sortByArrivalDesc(rows){
+  return [...rows].sort((a,b)=>{
+    const ta = timeToMinutes(a.arrival) ?? -1;
+    const tb = timeToMinutes(b.arrival) ?? -1;
+    return tb - ta;
+  });
+}
+// عمود واحد داخل مربع Dock/Arrive: عنوانه أكواد المخازن + عدد الشركات + قائمة الصفوف
+function yardGroupHtml(label, rows){
+  const vendors = new Set(rows.map(r=>(r.vendor||"").trim()).filter(Boolean));
+  const list = rows.length
+    ? sortByArrivalDesc(rows).map(yardRowHtml).join("")
+    : `<div class="yard-empty">${t("yardZoneEmpty")}</div>`;
+  return `
+    <div class="yard-group">
+      <div class="yard-group-head">
+        <span class="yard-group-label">${escapeHtml(label)}</span>
+        <span class="yard-group-count">${t("yardVendors",{n:fmt(vendors.size)})}</span>
+      </div>
+      <div class="yard-group-list">${list}</div>
+    </div>
+  `;
+}
+
 function fillYardTable(bodyId, countId, rows, emptyKey){
   const body = el(bodyId);
   const count = el(countId);
@@ -2649,12 +2693,13 @@ function fillYardTable(bodyId, countId, rows, emptyKey){
     body.innerHTML = `<div class="yard-empty">${t(emptyKey)}</div>`;
     return;
   }
-  const sorted = [...rows].sort((a,b)=>{
-    const ta = timeToMinutes(a.arrival) ?? -1;
-    const tb = timeToMinutes(b.arrival) ?? -1;
-    return tb - ta;
-  });
-  body.innerHTML = sorted.map(yardRowHtml).join("");
+  const zoneA = rows.filter(r=>YARD_ZONE_A.includes(r.facility));
+  const zoneB = rows.filter(r=>!YARD_ZONE_A.includes(r.facility));
+  const labelB = CAPACITY_ORDER.filter(f=>!YARD_ZONE_A.includes(f)).join(" · ") || t("yardZoneRest");
+  body.innerHTML = `<div class="yard-groups">
+    ${yardGroupHtml(YARD_ZONE_A.join(" · "), zoneA)}
+    ${yardGroupHtml(labelB, zoneB)}
+  </div>`;
 }
 
 function renderYardTables(data){
