@@ -578,7 +578,9 @@
             <th data-key="qty" data-i18n="thQty">Quantity</th>
             <th data-key="status" data-i18n="thStatus">Status</th>
             <th data-key="emp" data-i18n="thEmp">Employee</th>
-            <th data-key="arrival" data-i18n="thArrival">Arrival time</th>
+            <th data-key="arrival" data-i18n="hourlyArrive">Arrive</th>
+            <th data-i18n="hourlyDock">Dock</th>
+            <th data-i18n="hourlyReceived">Received</th>
           </tr>
         </thead>
         <tbody id="tableBody"></tbody>
@@ -2869,7 +2871,7 @@ function renderTable(data){
   const tbody = el("tableBody");
   if(!tbody) return;
   if(!rows.length){
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="9">${t("empty")}</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="11">${t("empty")}</td></tr>`;
     renderPager(0);
     return;
   }
@@ -2877,6 +2879,7 @@ function renderTable(data){
   if(tablePage >= pages) tablePage = pages - 1;
   if(tablePage < 0) tablePage = 0;
   const pageRows = rows.slice(tablePage * TABLE_PAGE_SIZE, (tablePage + 1) * TABLE_PAGE_SIZE);
+  const timesMap = recordYardTimes(RAW_DATA);
   tbody.innerHTML = pageRows.map(r=>`
     <tr>
       <td>${escapeHtml(enDate(r.date))}</td>
@@ -2887,7 +2890,9 @@ function renderTable(data){
       <td class="qty">${fmt(r.qty)}</td>
       <td><span class="pill ${statusPill(r.status)}">${escapeHtml(r.status || "—")}</span></td>
       <td>${escapeHtml(r.emp)}</td>
-      <td>${escapeHtml(r.arrival ?? "—")}</td>
+      <td>${escapeHtml(yardStageTime(timesMap, r, "arrive") || "—")}</td>
+      <td>${escapeHtml(yardStageTime(timesMap, r, "dock") || "—")}</td>
+      <td>${escapeHtml(yardStageTime(timesMap, r, "received") || "—")}</td>
     </tr>
   `).join("");
 
@@ -3143,10 +3148,17 @@ function renderAccuracy(data){
 // تصدير CSV UTF-8. لو ضفت عمود في الجدول، ضيفه في headers و cells
 function exportExcel(){
   const data = getFiltered();
-  const headers = ["Date","Vendor","RO","ASN","Facility","Total RO","Quantity","Status","Schedule","Arrival","Employee","Cars","SKU"];
+  const timesMap = recordYardTimes(RAW_DATA);
+  const headers = ["Date","Vendor","RO","ASN","Facility","Total RO","Quantity","Status","Schedule","Arrival","Dock","Received","Employee","Cars","SKU"];
   const lines = [headers.join(",")];
   data.forEach(r=>{
-    const cells = [r.date,r.vendor,r.ro,r.asn,r.facility,r.totalRo||0,r.qty,r.status,r.accuracy||"",r.arrival||"",r.emp,r.cars,r.product??""];
+    const cells = [
+      r.date,r.vendor,r.ro,r.asn,r.facility,r.totalRo||0,r.qty,r.status,r.accuracy||"",
+      r.arrival||"",
+      yardStageTime(timesMap, r, "dock") || "",
+      yardStageTime(timesMap, r, "received") || "",
+      r.emp,r.cars,r.product??""
+    ];
     lines.push(cells.map(v=>{
       const s = String(v??"");
       return /[",\n]/.test(s) ? `"${s.replaceAll('"','""')}"` : s;
