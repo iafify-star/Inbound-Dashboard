@@ -620,6 +620,13 @@ const CAPACITY_CSV_URLS = [
   `https://docs.google.com/spreadsheets/d/${CAPACITY_SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Capacity`,
   `https://docs.google.com/spreadsheets/d/${CAPACITY_SHEET_ID}/export?format=csv&gid=${CAPACITY_GID}`,
 ];
+// شيت PUT AWAY. مستخدم بس في الريبورت (مش في اللايف داشبورد). بيانات النهارده هنا
+// بتاعة استلام إمبارح فعليًا (اليوم بتاخد وقت تتبوت)، فالريبورت بيوسمها بتاريخ يوم قبل تاريخه.
+const PUTAWAY_SHEET_ID = "1qOls6fcckSVBWkH3_QfiXcZBWBU_xF02F5WC9qdB6So";
+const PUTAWAY_CSV_URLS = [
+  `https://docs.google.com/spreadsheets/d/${PUTAWAY_SHEET_ID}/export?format=csv&gid=0`,
+  `https://docs.google.com/spreadsheets/d/${PUTAWAY_SHEET_ID}/gviz/tq?tqx=out:csv&gid=0`,
+];
 // سرعة التحديث من الشيت بالمللي ثانية. 8000 = أول بأول من غير ما نضغط على الشيت.
 const AUTO_REFRESH_MS = 8000;
 
@@ -1263,6 +1270,7 @@ let lastChartSkin = "";
 let lastSnapHash = "";
 let lastCapacityRows = [];
 let lastCapacityAt = 0;
+let lastPutawayRows = [];
 let liveSession = false;
 const CAPACITY_REFRESH_MS = 60000;
 const TABLE_PAGE_SIZE = 50;
@@ -1362,6 +1370,23 @@ function normalizeCapacityRow(row){
   if(!capacity) return null;
   const dateRaw = (pick(row,["Date"])||"").toString().trim();
   return { date: dateRaw ? parseSheetDate(dateRaw) : "", facility, capacity };
+}
+
+// صف شيت PUT AWAY. partner_code هو كود المستودع نفسه (CAIID01...). مفيش عمود تاريخ نعتمد عليه —
+// الشيت بيتحدث يوميًا بأرقام إمبارح، فالريبورت هو اللي بيحدد التاريخ (يوم قبل تاريخ الريبورت).
+function normalizePutawayRow(row){
+  const asn = (pick(row,["asn_nr"])||"").toString().trim();
+  let facility = (pick(row,["partner_code"])||"").toString().trim().toUpperCase();
+  if(!asn && !facility) return null;
+  if(FACILITY_MERGE[facility]) facility = FACILITY_MERGE[facility];
+  const gateInRaw = (pick(row,["gate_in_qty"])||"0").toString().replace(/,/g,"").trim();
+  const putawayRaw = (pick(row,["putaway_qty"])||"0").toString().replace(/,/g,"").trim();
+  return {
+    asn,
+    facility,
+    gateInQty: parseInt(gateInRaw,10) || 0,
+    putawayQty: parseInt(putawayRaw,10) || 0,
+  };
 }
 
 function capacityForDate(date){
@@ -1631,6 +1656,31 @@ async function loadCapacitySheet(){
     }
   }
   return lastCapacityRows;
+}
+
+// بيتنادى بس وقت ما الريبورت بيتبني. لو فشل، الريبورت يكمل من غير عمود الـ Gate-in/Put-away.
+async function loadPutawayRows(){
+  for(const url of PUTAWAY_CSV_URLS){
+    try{
+      const rows = parseCsv(await fetchCsv(url), true).map(normalizePutawayRow).filter(Boolean);
+      if(rows.length){
+        lastPutawayRows = rows;
+        return rows;
+      }
+    }catch(err){
+      console.warn("Put-away sheet fetch failed:", url, err);
+    }
+  }
+  try{
+    const rows = gvizToObjects(await fetchGvizJsonp(PUTAWAY_SHEET_ID, "gid=0")).map(normalizePutawayRow).filter(Boolean);
+    if(rows.length){
+      lastPutawayRows = rows;
+      return rows;
+    }
+  }catch(err){
+    console.warn("Put-away gviz fetch failed:", err);
+  }
+  return lastPutawayRows;
 }
 
 // محول الشيت. InboundClient بيناديه لما mode=sheet. متستدعوهوش من الأزرار مباشرة.
@@ -3173,6 +3223,15 @@ function reportDateLabel(iso){
   const dt = new Date(Number(m[1]), Number(m[2])-1, Number(m[3]));
   return dt.toLocaleDateString("en-GB", {weekday:"long", day:"numeric", month:"long", year:"numeric"});
 }
+// بتزود أو تنقص أيام من تاريخ ISO. مستخدمة عشان الـ Gate-in/Put-away بتاعة يوم قبل تاريخ الريبورت.
+function addDaysIso(iso, delta){
+  const m = (iso||"").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(!m) return iso || "";
+  const dt = new Date(Number(m[1]), Number(m[2])-1, Number(m[3]));
+  dt.setDate(dt.getDate() + (delta||0));
+  const y = dt.getFullYear(), mo = String(dt.getMonth()+1).padStart(2,"0"), d = String(dt.getDate()).padStart(2,"0");
+  return `${y}-${mo}-${d}`;
+}
 function facilityReportName(fac){
   const spec = FACILITY_SPECIALTY[fac];
   return spec ? `${fac} ${spec}` : fac;
@@ -3191,6 +3250,20 @@ function reportVendorStats(rows){
     if(isReceivedRow(r)) map[name].sku += r.product||0;
   });
   return Object.values(map);
+}
+// إجمالي واستلام Gate-in/Put-away لكل مستودع، من شيت PUT AWAY (يوم قبل تاريخ الريبورت).
+function putawaySummary(rows){
+  const byFac = {};
+  let gateIn = 0, putaway = 0;
+  (rows||[]).forEach(r=>{
+    gateIn += r.gateInQty||0;
+    putaway += r.putawayQty||0;
+    if(!r.facility) return;
+    if(!byFac[r.facility]) byFac[r.facility] = {gateIn:0, putaway:0};
+    byFac[r.facility].gateIn += r.gateInQty||0;
+    byFac[r.facility].putaway += r.putawayQty||0;
+  });
+  return {byFac, gateIn, putaway};
 }
 function reportTopVendors(list, key, limit){
   return [...(list||[])]
@@ -3275,8 +3348,10 @@ function reportArabicStamp(doc, text, x, y, opt){
   else if(align === "center") imgX = x - wMm / 2;
   try{ doc.addImage(canvas.toDataURL("image/png"), "PNG", imgX, y - hMm * 0.72, wMm, hMm); }catch(e){}
 }
-function buildDailyReportModel(day, data){
+function buildDailyReportModel(day, data, putawayRows){
   const rows = (data||[]).filter(r => r.asn || r.vendor);
+  const putaway = putawaySummary(putawayRows);
+  const putawayDay = addDaysIso(day, -1);
   const plannedAsn = new Set(rows.map(asnKey));
   const receivedAsn = new Set(rows.filter(isReceivedRow).map(asnKey));
   const plannedQty = rows.reduce((s,r)=>s+(r.totalRo||0),0);
@@ -3308,13 +3383,15 @@ function buildDailyReportModel(day, data){
     const v = byFac[fac] || {qty:0, ro:0, asn:new Set(), got:new Set()};
     const cap = capMap[fac] || 0;
     totalCap += cap;
+    const pw = putaway.byFac[fac];
     return {
       code: fac,
       spec: FACILITY_SPECIALTY[fac] || "",
       asn: reportPair(v.got.size, v.asn.size),
       qty: reportPair(v.qty, v.ro),
       cap: reportPair(v.qty, cap),
-      pct: reportPct(v.qty, cap)
+      pct: reportPct(v.qty, cap),
+      gateIn: pw ? reportPair(pw.gateIn, pw.putaway) : null
     };
   });
   const asnPct = reportPct(receivedAsn.size, plannedAsn.size);
@@ -3339,6 +3416,12 @@ function buildDailyReportModel(day, data){
       capPct
     },
     facs: facRows,
+    putaway: {
+      label: reportDateLabel(putawayDay),
+      gateIn: putaway.gateIn,
+      putaway: putaway.putaway,
+      pct: reportPct(putaway.putaway, putaway.gateIn)
+    },
     topQty: reportTopVendors(vendorStats, "qty", 5),
     topSku: reportTopVendors(vendorStats, "sku", 5),
     topPlan: reportTopVendors(vendorStats, "planned", 5)
@@ -3395,18 +3478,20 @@ function drawFacilityRow(doc, x0, y, rh, cols, row, zebra){
     reportText(doc, row.code, x0 + 1.6, midY, {size: 8.4, bold: true, color: "#141414"});
     const codeW = doc.getTextWidth(row.code) + 2.4;
     if(row.spec){
-      reportText(doc, row.spec, x0 + 1.6 + codeW, midY, {size: 7.8, color: "#8a8f98"});
+      reportText(doc, row.spec, x0 + 1.6 + codeW, midY, {size: 7.8, color: "#8a8f98", maxWidth: cols[0].w - codeW - 3.2});
     }
   }
   let cx = x0 + cols[0].w;
-  const vals = [row.asn, row.qty, row.cap];
-  for(let i = 0; i < 3; i++){
-    reportText(doc, vals[i], cx + cols[i + 1].w - 1.6, midY, {size: 8.4, color: "#141414", align: "right", maxWidth: cols[i + 1].w - 3.2});
+  const hasGateIn = row.gateIn != null;
+  const vals = [row.asn, row.qty, row.cap, hasGateIn ? row.gateIn : "—"];
+  for(let i = 0; i < 4; i++){
+    const color = (i === 3 && !hasGateIn) ? "#b7bac2" : "#141414";
+    reportText(doc, vals[i], cx + cols[i + 1].w - 1.6, midY, {size: 8.4, color, align: "right", maxWidth: cols[i + 1].w - 3.2});
     cx += cols[i + 1].w;
   }
-  const pctColW = cols[4].w, barW = 15;
+  const pctColW = cols[5].w, barW = 10;
   const barColor = row.total ? "#141414" : (row.pct >= 100 ? "#db3332" : row.pct > 0 ? "#18795f" : "#c7c9cf");
-  const barX = cx + pctColW - barW - 12;
+  const barX = cx + 1.6;
   reportRoundBar(doc, barX, y + rh / 2 - 1.1, barW, 2.2, row.pct, "#eaecef", barColor);
   reportText(doc, row.pct + "%", cx + pctColW - 1.6, midY, {size: 8.4, bold: true, color: barColor, align: "right"});
   doc.setDrawColor.apply(doc, reportRgb("#eeeeee"));
@@ -3485,26 +3570,29 @@ function drawDailyReportPdf(doc, model, logo){
     reportText(doc, c.pct + "% " + (c.capacity ? "used" : "received"), x + cardW - 4, y + 34.8, {size: 8, bold: true, color: numC, align: "right"});
   });
 
-  y += cardH + 9;
+  y += cardH + 8;
 
   reportSectionHead(doc, x0, y, contentW, "Facilities");
   y += 8;
-  const facCols = [{w: 46, align: "left"}, {w: 34, align: "right"}, {w: 34, align: "right"}, {w: 34, align: "right"}, {w: 34, align: "right"}];
-  reportColHeadRow(doc, x0, y, facCols, ["FACILITY", "ASN RECEIVED / PLANNED", "QTY / TOTAL RO", "QTY / CAPACITY", "% USED"]);
+  reportText(doc, `Gate-in / put-away figures are for ${model.putaway.label} (previous day)`, x0 + 1.6, y + 3.6, {size: 7.2, color: "#8a8f98", maxWidth: contentW - 3.2});
+  y += 5;
+  const facCols = [{w: 40, align: "left"}, {w: 24, align: "right"}, {w: 32, align: "right"}, {w: 30, align: "right"}, {w: 34, align: "right"}, {w: 22, align: "right"}];
+  reportColHeadRow(doc, x0, y, facCols, ["FACILITY", "ASN", "QTY / RO", "QTY / CAP", "GATE-IN / PUTAWAY", "%"]);
   y += 7;
   const facRows = model.facs.concat([{
     total: true,
     asn: reportPair(model.kpis.asnGot, model.kpis.asnPlan),
     qty: reportPair(model.kpis.qtyGot, model.kpis.qtyPlan),
     cap: reportPair(model.kpis.qtyGot, model.kpis.cap),
-    pct: model.kpis.capPct
+    pct: model.kpis.capPct,
+    gateIn: reportPair(model.putaway.gateIn, model.putaway.putaway)
   }]);
   facRows.forEach((r, i)=>{
     drawFacilityRow(doc, x0, y, 7, facCols, r, i % 2 === 1);
     y += 7;
   });
 
-  y += 10;
+  y += 9;
   const half = (contentW - 4) / 2;
   const startY = y;
   function drawVendorTable(x, title, rows, valueKey, valueLabel){
@@ -3527,7 +3615,7 @@ function drawDailyReportPdf(doc, model, logo){
   }
   const yLeft = drawVendorTable(x0, "Top 5 Vendors by Quantity", model.topQty, "qty", "Quantity");
   const yRight = drawVendorTable(x0 + half + 4, "Top 5 Vendors by SKU", model.topSku, "sku", "SKU");
-  y = Math.max(yLeft, yRight) + 10;
+  y = Math.max(yLeft, yRight) + 9;
 
   reportSectionHead(doc, x0, y, contentW, "Top 5 Vendors by Planned Quantity");
   y += 8;
@@ -3620,7 +3708,11 @@ async function downloadDailyReportPdf(day, data){
     try{ await document.fonts.ready; }catch(e){}
   }
   const logo = await reportLogoSrc();
-  const model = buildDailyReportModel(day, data);
+  const putawayRows = await loadPutawayRows().catch(err=>{
+    console.warn("Put-away rows unavailable; report continues without them:", err);
+    return [];
+  });
+  const model = buildDailyReportModel(day, data, putawayRows);
   const doc = new JsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
   drawDailyReportPdf(doc, model, logo);
   downloadBlob(doc.output("blob"), filename);
