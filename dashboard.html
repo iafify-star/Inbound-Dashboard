@@ -540,6 +540,12 @@
     <div class="chart-box tall"><canvas id="chartEmpPerf"></canvas></div>
   </div>
 
+  <div class="panel" style="margin-bottom:16px;">
+    <h3 data-i18n="vendorTimeline">Vendor arrival → received timeline</h3>
+    <p class="desc" data-i18n="vendorTimelineDesc">When each vendor arrived and when their last ASN was received today</p>
+    <div class="chart-box tall" id="chartVendorTimelineBox"><canvas id="chartVendorTimeline"></canvas></div>
+  </div>
+
   <div class="grid2">
     <div class="panel yard-panel">
       <div class="yard-head">
@@ -702,6 +708,10 @@ const I18N = {
     hourlyArrive:"Arrive",
     hourlyDock:"Dock",
     hourlyReceived:"Received",
+    vendorTimeline:"Vendor arrival → received timeline",
+    vendorTimelineDesc:"When each vendor arrived and when their last ASN was received today",
+    vendorTimelineOngoing:"still in progress",
+    tooltipVendorTimeline:"Arrived {arrive} · Received {received}",
     lateTitle:"Waiting over 1 hour",
     lateDesc:"Arrive or Dock for more than an hour, not received",
     lateEmpty:"No late ASNs",
@@ -876,6 +886,10 @@ const I18N = {
     hourlyArrive:"Arrive",
     hourlyDock:"Dock",
     hourlyReceived:"Received",
+    vendorTimeline:"تايملاين كل شركة — من الوصول للاستلام",
+    vendorTimelineDesc:"كل شركة دخلت امتى وآخر ASN ليها اتسلم امتى النهارده",
+    vendorTimelineOngoing:"لسه شغالة",
+    tooltipVendorTimeline:"دخلت {arrive} · اتسلمت {received}",
     lateTitle:"متأخر أكتر من ساعة",
     lateDesc:"وصل Arrive أو Dock من ساعة ومش اتقفل Received",
     lateEmpty:"مفيش ASN متأخر",
@@ -1255,6 +1269,15 @@ function hourLabel(h){
   const ap = h>=12 ? "PM" : "AM";
   let hh = h%12; if(hh===0) hh=12;
   return hh+":00 "+ap;
+}
+// نفس hourLabel بس بالدقيقة (١١:٠٦ ص) مستخدمة في تايملاين الشركات
+function minutesToClock(mins){
+  if(mins==null) return "";
+  let h = Math.floor(mins/60)%24, m = Math.round(mins%60);
+  if(m>=60){ m -= 60; h = (h+1)%24; }
+  const ap = h>=12 ? "PM" : "AM";
+  let hh = h%12; if(hh===0) hh=12;
+  return hh+":"+String(m).padStart(2,"0")+" "+ap;
 }
 function unique(arr, key){ return [...new Set(arr.map(r=>r[key]))].filter(Boolean).sort(); }
 
@@ -2354,7 +2377,7 @@ function upsertChart(name, canvas, config){
   return chart;
 }
 
-function renderCharts(data){
+function renderCharts(data, timesMap){
   const skin = (document.documentElement.getAttribute("data-theme")||"light")+":"+currentLang;
   if(skin !== lastChartSkin){
     destroyCharts();
@@ -2362,7 +2385,7 @@ function renderCharts(data){
     lastChartKey = "";
   }
   const key = chartViewKey(data);
-  if(key === lastChartKey && charts.facilityQty && charts.facilitySku && charts.topVendors && (!el("chartEmpPerf") || charts.empPerf) && (!el("chartHourly") || charts.hourly)) return;
+  if(key === lastChartKey && charts.facilityQty && charts.facilitySku && charts.topVendors && (!el("chartEmpPerf") || charts.empPerf) && (!el("chartHourly") || charts.hourly) && (!el("chartVendorTimeline") || charts.vendorTimeline)) return;
   lastChartKey = key;
   if(typeof Chart === "undefined") return;
   applyChartDefaults();
@@ -2376,7 +2399,8 @@ function renderCharts(data){
   const chartTopVendors = can("chartTopVendors");
   const empCanvas = can("chartEmpPerf");
   const hourlyCanvas = can("chartHourly");
-  if(!chartFacilityQty && !chartFacilitySku && !chartTopVendors && !empCanvas && !hourlyCanvas) return;
+  const vendorTimelineCanvas = can("chartVendorTimeline");
+  if(!chartFacilityQty && !chartFacilitySku && !chartTopVendors && !empCanvas && !hourlyCanvas && !vendorTimelineCanvas) return;
 
   const byFacilityQty = {};
   const byFacilitySku = {};
@@ -2629,6 +2653,52 @@ function renderCharts(data){
       }
     });
   }
+
+  if(vendorTimelineCanvas){
+    const rows = computeVendorTimeline(data, timesMap || {});
+    const box = el("chartVendorTimelineBox");
+    if(box) box.style.height = Math.max(220, rows.length * 24 + 46) + "px";
+    upsertChart("vendorTimeline", vendorTimelineCanvas, {
+      type:"bar",
+      $vendors: rows,
+      data:{
+        labels: rows.map(r=> r.vendor.length>26 ? r.vendor.slice(0,26)+"…" : r.vendor),
+        datasets:[{
+          label:t("vendorTimeline"),
+          data: rows.map(r=>[r.start, r.end]),
+          backgroundColor: rows.map(r=> r.ongoing ? "#f5e023" : "#1fb08f"),
+          borderRadius:6,
+          maxBarThickness:18,
+          borderSkipped:false
+        }]
+      },
+      options:{
+        indexAxis:"y",
+        responsive:true, maintainAspectRatio:false,
+        animation:{duration:450},
+        onClick:(_e, els, chart)=>{
+          if(!els.length) return;
+          const list = chart.$vendors || [];
+          if(list[els[0].index]) applyClickFilter("vendor", list[els[0].index].vendor);
+        },
+        plugins:{
+          legend:{display:false},
+          tooltip:{ callbacks:{
+            label:(c)=>{
+              const row = (c.chart.$vendors || [])[c.dataIndex];
+              if(!row) return "";
+              const endLbl = row.ongoing ? t("vendorTimelineOngoing") : minutesToClock(row.end);
+              return t("tooltipVendorTimeline", {arrive: minutesToClock(row.start), received: endLbl});
+            }
+          } }
+        },
+        scales:{
+          x:{ grid:{color:tc.grid}, ticks:{callback:v=>minutesToClock(v), font:{size:10}}, title:{display:true, text:t("hourly"), font:{size:11}} },
+          y:{ grid:{display:false}, ticks:{font:{size:11}} }
+        }
+      }
+    });
+  }
 }
 
 // ===================== CAPACITY PANEL =====================
@@ -2753,6 +2823,38 @@ function yardStagesHtml(map, r){
       <span class="stage-time received"><b>${t("hourlyReceived")}</b> ${escapeHtml(yardStageTime(map, r, "received") || "—")}</span>
     </div>
   `;
+}
+// تايملاين لكل شركة: من أول وصول (Arrival الحقيقي من الشيت) لآخر استلام (متتبّع من المتصفح).
+// لو لسه فيها ASN مش Received، الشريط يفضل مفتوح لحد دلوقتي ويتلوّن أصفر (لسه شغالة).
+function computeVendorTimeline(data, timesMap){
+  const byVendor = {};
+  (data||[]).forEach(r=>{
+    const name = (r.vendor||"").trim();
+    if(!name) return;
+    const arriveMin = timeToMinutes(r.arrival);
+    if(arriveMin==null) return;
+    if(!byVendor[name]) byVendor[name] = {vendor:name, start:arriveMin, end:null, pending:0, total:0};
+    const v = byVendor[name];
+    v.total++;
+    if(arriveMin < v.start) v.start = arriveMin;
+    if(isReceivedRow(r)){
+      const recMin = timeToMinutes(yardStageTime(timesMap, r, "received"));
+      if(recMin!=null && (v.end==null || recMin>v.end)) v.end = recMin;
+    }else{
+      v.pending++;
+    }
+  });
+  const nowMin = (()=>{ const d=new Date(); return d.getHours()*60+d.getMinutes(); })();
+  return Object.values(byVendor)
+    .map(v=>({
+      vendor:v.vendor,
+      start:v.start,
+      end: Math.max(v.pending>0 ? nowMin : (v.end!=null ? v.end : v.start), v.start),
+      ongoing: v.pending>0,
+      total:v.total,
+      pending:v.pending
+    }))
+    .sort((a,b)=>a.start-b.start || a.vendor.localeCompare(b.vendor));
 }
 
 function yardRowHtml(r, timesMap){
@@ -3890,7 +3992,7 @@ function render(){
     renderKPIs(data);
     renderCapacity(data);
     renderAlerts(data);
-    renderCharts(data);
+    renderCharts(data, yardTimes);
     renderLateList(data, yardTimes);
     renderYardTables(data, yardTimes);
     renderTable(data);
