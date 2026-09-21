@@ -1040,6 +1040,8 @@ const FACILITY_SPECIALTY = {
   "CAIID06": "X-Dock",
   "CAIID07": "X-Dock",
 };
+// اختصار نوع التخزين اللي يظهر جنب اسم المورد في الريبورت (أكبر مستودع شغال عنده بالكمية).
+const SPECIALTY_ABBR = { "Ambient":"AMB", "Chilled":"CHL", "Frozen":"FRZ", "X-Dock":"XDK" };
 
 // توحيد أسماء الموظفين: نفس الشخص بأسماء مختلفة يتلمّ في اسم واحد.
 const EMP_ALIASES = {
@@ -3256,12 +3258,20 @@ function reportVendorStats(rows){
   (rows||[]).forEach(r=>{
     const name = (r.vendor||"").trim();
     if(!name) return;
-    if(!map[name]) map[name] = {name, qty:0, sku:0, planned:0};
+    if(!map[name]) map[name] = {name, qty:0, sku:0, planned:0, byFac:{}};
     map[name].qty += r.qty||0;
     map[name].planned += r.totalRo||0;
     if(isReceivedRow(r)) map[name].sku += r.product||0;
+    if(r.facility){
+      map[name].byFac[r.facility] = (map[name].byFac[r.facility]||0) + (r.totalRo||r.qty||1);
+    }
   });
-  return Object.values(map);
+  const list = Object.values(map);
+  list.forEach(v=>{
+    const top = Object.entries(v.byFac).sort((a,b)=>b[1]-a[1])[0];
+    v.tag = top ? (SPECIALTY_ABBR[FACILITY_SPECIALTY[top[0]]] || "") : "";
+  });
+  return list;
 }
 // إجمالي واستلام Gate-in/Put-away لكل مستودع، من شيت PUT AWAY (يوم قبل تاريخ الريبورت).
 function putawaySummary(rows){
@@ -3476,6 +3486,21 @@ function reportBadge(doc, cx, cy, r, rank){
   doc.circle(cx, cy, r, "F");
   reportText(doc, String(rank), cx, cy + r * 0.36, {size: 7.4, bold: true, color: pair[1], align: "center"});
 }
+// شارة نوع التخزين (AMB/CHL/FRZ/XDK) جنب اسم المورد. متثبتة على يمين عمود الاسم عشان
+// ميتحسبش عرض النص (أسماء عربي بتتحسب بطريقة تانية عن الإنجليزي).
+function reportSpecialtyBadge(doc, xRight, yCenter, tag){
+  if(!tag) return;
+  const styles = {
+    AMB: ["#fff6b0", "#8a6d00"],
+    CHL: ["#e0f7fa", "#00707d"],
+    FRZ: ["#e3edfd", "#1d4ed8"],
+    XDK: ["#ede9fe", "#6d28d9"]
+  };
+  const pair = styles[tag] || ["#eef0f3", "#6b6f76"];
+  const w = 12.5, h = 4.4;
+  reportCard(doc, xRight - w, yCenter - h / 2, w, h, pair[0], {radius: h / 2});
+  reportText(doc, tag, xRight - w / 2, yCenter + 1.05, {size: 6, bold: true, color: pair[1], align: "center"});
+}
 function reportSectionHead(doc, x, y, w, title){
   reportFill(doc, x, y, w, 8, "#141414");
   reportFill(doc, x, y, 3, 8, "#f5e023");
@@ -3530,7 +3555,12 @@ function drawVendorRow(doc, x0, y, rh, rank, cells, cols, zebra){
     const col = cols[i];
     if(col.badge){
       reportBadge(doc, cx + 4.4, y + rh / 2, 3, rank);
-      reportText(doc, cell, cx + 10.4, y + rh / 2 + 1.5, {size: 8.3, color: "#141414", maxWidth: col.w - 12});
+      const isObj = cell && typeof cell === "object";
+      const name = isObj ? cell.text : cell;
+      const tag = isObj ? cell.tag : "";
+      const tagW = tag ? 15 : 0;
+      reportText(doc, name, cx + 10.4, y + rh / 2 + 1.5, {size: 8.3, color: "#141414", maxWidth: col.w - 12 - tagW});
+      if(tag) reportSpecialtyBadge(doc, cx + col.w - 1.6, y + rh / 2, tag);
     }else{
       const tx = col.align === "right" ? cx + col.w - 1.6 : cx + 1.6;
       reportText(doc, cell, tx, y + rh / 2 + 1.5, {size: 8.3, bold: !!col.bold, color: col.color || "#141414", align: col.align || "left", maxWidth: col.w - 3.2});
@@ -3637,7 +3667,7 @@ function drawReportPageOne(doc, model, logo){
     for(let i = 0; i < 5; i++){
       const v = list[i];
       if(v){
-        drawVendorRow(doc, x, yy, 7, i + 1, [v.name, reportN(v[valueKey])], cols, i % 2 === 1);
+        drawVendorRow(doc, x, yy, 7, i + 1, [{text: v.name, tag: v.tag}, reportN(v[valueKey])], cols, i % 2 === 1);
       }else{
         drawEmptyVendorRow(doc, x, yy, 7, half);
       }
@@ -3661,7 +3691,7 @@ function drawReportPageOne(doc, model, logo){
       const pct = reportPct(v.qty, v.planned);
       const pc = pct >= 100 ? "#18795f" : pct === 0 ? "#db3332" : "#141414";
       const cols = [pcols[0], pcols[1], pcols[2], Object.assign({}, pcols[3], {bold: true, color: pc})];
-      drawVendorRow(doc, x0, y, 7, i + 1, [v.name, reportN(v.planned), reportN(v.qty), pct + "%"], cols, i % 2 === 1);
+      drawVendorRow(doc, x0, y, 7, i + 1, [{text: v.name, tag: v.tag}, reportN(v.planned), reportN(v.qty), pct + "%"], cols, i % 2 === 1);
     }else{
       drawEmptyVendorRow(doc, x0, y, 7, contentW);
     }
