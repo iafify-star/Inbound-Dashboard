@@ -3520,22 +3520,25 @@ function buildDailyReportModel(day, data, putawayRows){
   const venPct = reportPct(vendorsGot.size, vendors.size);
   const capPct = reportPct(receivedQty, totalCap);
   const vendorStats = reportVendorStats(rows);
+  const kpis = {
+    asnGot: receivedAsn.size,
+    asnPlan: plannedAsn.size,
+    qtyGot: receivedQty,
+    qtyPlan: plannedQty,
+    venGot: vendorsGot.size,
+    venPlan: vendors.size,
+    cap: totalCap,
+    asnPct,
+    qtyPct,
+    venPct,
+    capPct
+  };
+  const topPlan = reportTopVendors(vendorStats, "planned", 5);
   return {
     day,
     label: reportDateLabel(day),
-    kpis: {
-      asnGot: receivedAsn.size,
-      asnPlan: plannedAsn.size,
-      qtyGot: receivedQty,
-      qtyPlan: plannedQty,
-      venGot: vendorsGot.size,
-      venPlan: vendors.size,
-      cap: totalCap,
-      asnPct,
-      qtyPct,
-      venPct,
-      capPct
-    },
+    kpis,
+    summary: buildExecutiveSummary(kpis, facRows, topPlan),
     facs: facRows,
     putaway: {
       label: reportDateLabel(putawayDay),
@@ -3552,8 +3555,21 @@ function buildDailyReportModel(day, data, putawayRows){
     },
     topQty: reportTopVendors(vendorStats, "qty", 5),
     topSku: reportTopVendors(vendorStats, "sku", 5),
-    topPlan: reportTopVendors(vendorStats, "planned", 5)
+    topPlan
   };
+}
+// جملة واحدة حادة تلخّص أهم حاجة النهارده: مستودع فوق الكاباستي، أو مورد كبير لسه صفر استلام،
+// أو تطمين إن مفيش مشكلة. متعمّد إنها مختصرة ومتكررش أرقام الـ KPI cards فوقها في الريبورت.
+function buildExecutiveSummary(kpis, facRows, topPlanVendors){
+  const over = [...(facRows||[])].filter(f=>f.pct>=100).sort((a,b)=>b.pct-a.pct)[0];
+  if(over) return `${over.code} is over capacity at ${over.pct}% — prioritise put-away or reroute inbound today.`;
+  const near = [...(facRows||[])].filter(f=>f.pct>=90 && f.pct<100).sort((a,b)=>b.pct-a.pct)[0];
+  if(near) return `${near.code} is nearing capacity at ${near.pct}% — watch the rest of today's ASNs.`;
+  const stuck = [...(topPlanVendors||[])]
+    .filter(v=>(v.planned||0)>0 && reportPct(v.qty, v.planned)===0)
+    .sort((a,b)=>b.planned-a.planned)[0];
+  if(stuck) return `${stuck.name} (${reportN(stuck.planned)} units planned) hasn't been received yet — today's largest pending vendor.`;
+  return `Receiving is on track: ${kpis.qtyPct}% of planned units received and no facility is at capacity risk.`;
 }
 function reportCard(doc, x, y, w, h, hex, opt){
   opt = opt || {};
@@ -3672,14 +3688,24 @@ function drawEmptyVendorRow(doc, x0, y, rh, w){
 }
 function reportFooter(doc, x0, W, H, label){
   const ink = "#141414", yellow = "#f5e023";
-  const footH = 18, fy = H - footH;
+  const footH = 16, fy = H - footH;
   reportFill(doc, 0, fy, W, footH, ink);
   reportFill(doc, 0, fy, 3, footH, yellow);
-  reportText(doc, "INBOUND DAILY REPORT", x0, fy + 6.4, {size: 8, bold: true, color: "#ffffff"});
-  reportText(doc, label, x0, fy + 12, {size: 7.5, color: "#9a9a86"});
-  reportCard(doc, W - x0 - 30, fy + 4.6, 30, 6.2, yellow, {radius: 1.4});
-  reportText(doc, "noon MINUTES", W - x0 - 15, fy + 8.6, {size: 7, bold: true, color: ink, align: "center"});
-  reportText(doc, "Designed by Ibrahim Afify", W / 2, fy + 14.2, {size: 8, bold: true, color: yellow, align: "center"});
+  reportText(doc, "INBOUND DAILY REPORT", x0, fy + 6.2, {size: 8, bold: true, color: "#ffffff"});
+  reportText(doc, label, x0, fy + 11.4, {size: 7.5, color: "#9a9a86"});
+  reportCard(doc, W - x0 - 30, fy + 4.2, 30, 6, yellow, {radius: 1.4});
+  reportText(doc, "noon MINUTES", W - x0 - 15, fy + 8.1, {size: 7, bold: true, color: ink, align: "center"});
+  reportText(doc, "Designed by Ibrahim Afify", W / 2, fy + 13.2, {size: 8, bold: true, color: yellow, align: "center"});
+}
+// صندوق "أهم حاجة النهارده" فوق جدول الـ Facilities مباشرة. جملة أوتوماتيك من buildExecutiveSummary.
+function drawExecSummary(doc, x0, y, w, h, text){
+  reportFill(doc, x0, y, w, h, "#fefaf0");
+  reportFill(doc, x0, y, 3, h, "#f5e023");
+  reportText(doc, "TODAY'S HIGHLIGHT", x0 + 7, y + 4.8, {size: 6.6, bold: true, color: "#8a6d00"});
+  reportText(doc, text, x0 + 7, y + 8.8, {size: 8.4, color: "#141414", maxWidth: w - 11, wrap: true});
+  doc.setDrawColor.apply(doc, reportRgb("#f0e6c0"));
+  doc.setLineWidth(0.3);
+  doc.line(x0, y + h, x0 + w, y + h);
 }
 function drawReportPageOne(doc, model, logo){
   const W = 210, H = 297, x0 = 14, contentW = 182;
@@ -3687,7 +3713,7 @@ function drawReportPageOne(doc, model, logo){
 
   reportFill(doc, 0, 0, W, H, "#ffffff");
 
-  const headerH = 32;
+  const headerH = 30;
   reportFill(doc, 0, 0, W, headerH, yellow);
   reportFill(doc, 0, headerH - 1.6, W, 1.6, ink);
   if(logo && String(logo).slice(0, 5) === "data:"){
@@ -3727,7 +3753,11 @@ function drawReportPageOne(doc, model, logo){
     reportText(doc, c.pct + "% " + (c.capacity ? "used" : "received"), x + cardW - 4, y + 34.8, {size: 8, bold: true, color: numC, align: "right"});
   });
 
-  y += cardH + 9;
+  y += cardH + 6;
+
+  const execH = 17;
+  drawExecSummary(doc, x0, y, contentW, execH, model.summary);
+  y += execH + 2;
 
   reportSectionHead(doc, x0, y, contentW, "Facilities");
   y += 8;
@@ -3746,7 +3776,7 @@ function drawReportPageOne(doc, model, logo){
     y += 7;
   });
 
-  y += 10;
+  y += 7;
   const half = (contentW - 4) / 2;
   const startY = y;
   function drawVendorTable(x, title, rows, valueKey, valueLabel){
@@ -3769,7 +3799,7 @@ function drawReportPageOne(doc, model, logo){
   }
   const yLeft = drawVendorTable(x0, "Top 5 Vendors by Quantity", model.topQty, "qty", "Quantity");
   const yRight = drawVendorTable(x0 + half + 4, "Top 5 Vendors by SKU", model.topSku, "sku", "SKU");
-  y = Math.max(yLeft, yRight) + 10;
+  y = Math.max(yLeft, yRight) + 7;
 
   reportSectionHead(doc, x0, y, contentW, "Top 5 Vendors by Planned Quantity");
   y += 8;
