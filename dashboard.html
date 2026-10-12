@@ -1353,6 +1353,11 @@ function pick(row, keys){
   return undefined;
 }
 
+function pickColumn(row, index){
+  const key = Object.keys(row)[index];
+  return key === undefined ? undefined : row[key];
+}
+
 // هنا ربط أعمدة الشيت بأسماء البرنامج.
 // لو الشيت ضاف عمود: pick(row,["اسم العمود في الشيت"]) بعدين حطه في الـ return
 // وظهره في renderTable + exportExcel
@@ -1365,13 +1370,13 @@ function normalizeRow(row){
   const iso = parseSheetDate(dateRaw);
 
   const qtyRaw = (pick(row,["Quantity Received"])||"0").toString().replace(/,/g,"").trim();
-  const totalRoRaw = (pick(row,["Total RO","TotalRO"])||"0").toString().replace(/,/g,"").trim();
+  const totalRoRaw = (pick(row,["Total RO","TotalRO"])||pickColumn(row,6)||"0").toString().replace(/,/g,"").trim();
   const carsRaw = (pick(row,["Cars"])||"0").toString().replace(/,/g,"").trim();
   // Proudct = الإملاء الغلط الموجود في الشيت. متشيلوش.
   const productRaw = (pick(row,["Proudct","Product"])||"").toString().replace(/,/g,"").trim();
-  const arrivalRaw = (pick(row,["Arrival Time"])||"").toString().trim();
+  const arrivalRaw = (pick(row,["Arrival Time","Time"])||"").toString().trim();
 
-  let facility = (pick(row,["Facility"])||"").toString().trim();
+  let facility = (pick(row,["Facility"])||pickColumn(row,5)||"").toString().trim();
   if(FACILITY_MERGE[facility]) facility = FACILITY_MERGE[facility];
 
   return {
@@ -1379,7 +1384,7 @@ function normalizeRow(row){
     vendor,
     ro: (pick(row,["RO"])||"").toString().trim(),
     asn,
-    accuracy: (pick(row,["Supplier Schedule Accuracy"])||"").toString().trim(),
+    accuracy: (pick(row,["Supplier Schedule Accuracy","Schedule Status"])||"").toString().trim(),
     facility,
     totalRo: parseInt(totalRoRaw,10) || 0,
     qty: parseInt(qtyRaw,10) || 0,
@@ -1520,7 +1525,7 @@ function parseCsvLite(text, header){
   }
   if(field || row.length){ row.push(field); lines.push(row); }
   if(!header) return lines;
-  const keys = (lines.shift() || []).map(k => String(k).trim());
+  const keys = (lines.shift() || []).map((k,i) => String(k).trim() || "__column_"+i);
   return lines.filter(r => r.some(c => String(c).trim())).map(r=>{
     const o = {};
     keys.forEach((k,i)=>{ o[k] = r[i] != null ? r[i] : ""; });
